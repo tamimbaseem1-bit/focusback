@@ -166,6 +166,30 @@ tr:last-child td{border-bottom:0}
 #student .acts .btn{padding:14px 22px;font-size:16px}
 #svExit{position:absolute;top:24px;right:16px;font-size:12px;padding:6px 10px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* Additions: session type, teacher alert, charts, scripted instructions */
+.teacher{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding:16px 20px;border:1.5px solid var(--c1);background:color-mix(in srgb,var(--c1) 12%,var(--surface));border-radius:var(--r)}
+.teacher h3{margin:0;font:700 18px/1.2 var(--display)}
+.teacher p{margin:2px 0 0;font-size:13px;color:var(--muted)}
+.teacher .btn{margin-left:auto}
+.script{display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-radius:12px;background:var(--sunk);border:1px solid var(--line)}
+.script .row{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted);font-weight:500}
+.script .now{font-size:18px;font-weight:600;direction:rtl;text-align:right;font-family:"IBM Plex Sans Arabic",var(--sans)}
+.script .bar{height:5px;border-radius:999px;background:var(--line);overflow:hidden}
+.script .bar i{display:block;height:100%;width:0;background:var(--ink)}
+.chip{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:600;background:var(--line);color:var(--ink)}
+.chip.off{background:color-mix(in srgb,var(--nudge) 35%,transparent)}
+.chip.test{background:color-mix(in srgb,var(--c4) 70%,transparent)}
+.metrics{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+.metric{border-bottom:1px solid var(--line)}
+.metric:nth-child(4n){border-right:0}
+.metric:nth-last-child(-n+4){border-bottom:0}
+@media (max-width:760px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}.metric:nth-child(2n){border-right:0}.metric:nth-last-child(-n+4){border-bottom:1px solid var(--line)}.metric:nth-last-child(-n+2){border-bottom:0}}
+#chartWrap{padding:18px}
+#charts{display:block;width:100%;height:auto;max-width:100%}
+#svTask{font:600 clamp(26px,4.5vw,40px)/1.4 "IBM Plex Sans Arabic",var(--sans);margin:0;direction:rtl;max-width:22ch}
+#svTaskBar{width:min(320px,70vw);height:6px;border-radius:999px;background:var(--line);overflow:hidden}
+#svTaskBar i{display:block;height:100%;width:0;background:var(--ink)}
 </style>
 </head>
 <body>
@@ -179,7 +203,6 @@ tr:last-child td{border-bottom:0}
 </header>
 
 <div class="grid">
-  <!-- Steps -->
   <aside class="card rail" aria-label="Session steps">
     <section class="step current" id="s1">
       <h2><b>1</b>Student and task</h2>
@@ -191,16 +214,25 @@ tr:last-child td{border-bottom:0}
         <button id="tReading" aria-pressed="true">Reading</button>
         <button id="tListening" aria-pressed="false">Listening</button>
       </div>
+      <div class="seg" role="group" aria-label="Session type">
+        <button id="mScript" aria-pressed="true">Scripted test</button>
+        <button id="mFree" aria-pressed="false">Free session</button>
+      </div>
+      <p class="note" id="modeNote"></p>
       <div class="toggle">
-        <span>Learn from corrections<small>Turn off for the comparison session</small></span>
-        <label class="switch"><input type="checkbox" id="adaptOn" checked aria-label="Learn from corrections"><span></span></label>
+        <span>Learn from corrections<small>Off = baseline round · On = adaptive round</small></span>
+        <label class="switch"><input type="checkbox" id="adaptOn" aria-label="Learn from corrections"><span></span></label>
+      </div>
+      <div class="toggle">
+        <span>Speak instructions<small>Arabic voice, if this device has one</small></span>
+        <label class="switch"><input type="checkbox" id="speakOn" checked aria-label="Speak instructions"><span></span></label>
       </div>
     </section>
 
     <section class="step" id="s2">
       <h2><b>2</b>Calibrate</h2>
-      <p id="calInfo">Ask the student to look at their work as they normally would for this task, then press Calibrate.</p>
-      <button class="btn wide" id="btnCal">Calibrate · 3 seconds</button>
+      <p id="calInfo"></p>
+      <button class="btn wide" id="btnCal">Calibrate · 20 seconds</button>
     </section>
 
     <section class="step" id="s3">
@@ -209,16 +241,20 @@ tr:last-child td{border-bottom:0}
         <button class="btn main" id="btnStart">Start</button>
         <button class="btn" id="btnStop" disabled>Stop</button>
       </div>
+      <div class="script" id="scriptBox" hidden>
+        <div class="row"><span id="scrStep">Step 1 of 12</span><span id="scrKind"></span></div>
+        <div class="now" id="scrNow"></div>
+        <div class="bar"><i id="scrBar"></i></div>
+      </div>
       <button class="btn wide obs" id="btnObs" aria-pressed="false" disabled>Observer: really off-task <kbd>O</kbd></button>
-      <p class="note">The observer presses O when the student truly stops working, and again when they return. This is the ground truth used to score accuracy.</p>
+      <p class="note" id="runNote"></p>
     </section>
   </aside>
 
-  <!-- Stage -->
   <main class="stage">
     <section class="card mapcard" aria-label="Attention zone">
       <div class="maphead">
-        <p class="say" id="say">Calibrate to set this student’s zone<small id="saySub">The green area is where this student’s head can point while still on task.</small></p>
+        <p class="say" id="say">Calibrate to set this student’s zone<small id="saySub">The blue area is where this student’s head can point while still on task.</small></p>
         <div class="meter" id="meter" hidden><div class="bar"><i id="meterBar"></i></div><span id="meterTxt"></span></div>
       </div>
       <canvas id="map" aria-label="Head direction relative to the student’s calibrated zone"></canvas>
@@ -234,8 +270,13 @@ tr:last-child td{border-bottom:0}
       </div>
     </section>
 
+    <section class="teacher" id="teacher" hidden aria-live="assertive">
+      <div><h3>Teacher support needed</h3><p id="teacherTxt">Two private nudges, and the student has not returned to the task.</p></div>
+      <button class="btn" id="btnTeacherOk">Dismiss</button>
+    </section>
+
     <section class="nudge" id="nudge" hidden aria-live="polite">
-      <div><h3>Private nudge sent</h3><p>Waiting for the student to return. Recovery time is measured automatically.</p></div>
+      <div><h3 id="nudgeTitle">Private nudge sent</h3><p>Waiting for the student to return. Recovery time is measured automatically.</p></div>
       <div class="acts">
         <button class="btn main" id="btnBack">I’m back <kbd>B</kbd></button>
         <button class="btn" id="btnFalse">I was focused <kbd>F</kbd></button>
@@ -246,15 +287,17 @@ tr:last-child td{border-bottom:0}
       <div class="tl"><canvas id="tl" aria-label="Session timeline"></canvas></div>
       <div class="legend">
         <span><i style="background:var(--zone)"></i>On task</span><span><i style="background:var(--nudge)"></i>Looking away</span>
-        <span><i style="background:var(--lost)"></i>Face not visible</span><span><i style="background:var(--observer)"></i>Observer: off-task</span><span>▼ nudge</span>
+        <span><i style="background:var(--lost)"></i>Face not visible</span><span><i style="background:var(--observer)"></i>Truly off-task (script or observer)</span><span>▼ nudge</span>
       </div>
       <div class="metrics" style="border-top:1px solid var(--line)">
         <div class="metric"><b id="mDur">0:00</b><span>Session time</span></div>
         <div class="metric"><b id="mOn">–</b><span>Time on task</span></div>
         <div class="metric"><b id="mAl">0</b><span>Nudges</span></div>
-        <div class="metric"><b id="mFa">0</b><span>Marked as false</span></div>
+        <div class="metric"><b id="mFa">0</b><span>Marked “I was focused”</span></div>
+        <div class="metric"><b id="mDet">–</b><span>Real off-task detected</span></div>
+        <div class="metric"><b id="mFalse">–</b><span>False nudge rate</span></div>
         <div class="metric"><b id="mRec">–</b><span>Avg. return time</span></div>
-        <div class="metric"><b id="mPr">–</b><span>Agreement with observer</span></div>
+        <div class="metric"><b id="mStay">–</b><span>Avg. stay after return</span></div>
       </div>
     </section>
 
@@ -262,6 +305,7 @@ tr:last-child td{border-bottom:0}
       <div class="head">
         <div class="tabs" role="tablist">
           <button role="tab" id="tabS" aria-selected="true">Sessions</button>
+          <button role="tab" id="tabC" aria-selected="false">Charts</button>
           <button role="tab" id="tabE" aria-selected="false">Event log</button>
         </div>
         <span class="confirm" id="clearConfirm" hidden>Press again to delete everything</span>
@@ -271,8 +315,15 @@ tr:last-child td{border-bottom:0}
       </div>
       <div id="paneS">
         <div class="tablewrap"><table id="sessTbl"><thead><tr>
-          <th>#</th><th>Student</th><th>Task</th><th>Learning</th><th>Minutes</th><th>On task</th><th>Nudges</th><th>False</th><th>False rate</th><th>Return (s)</th><th>TP</th><th>FP</th><th>FN</th></tr></thead><tbody></tbody></table></div>
+          <th>#</th><th>Student</th><th>Task</th><th>Type</th><th>Learning</th><th>Min</th><th>Nudges</th><th>Detected</th><th>False rate</th><th>“Focused”</th><th>Return (s)</th><th>Stay (s)</th><th>Teacher</th></tr></thead><tbody></tbody></table></div>
         <div class="empty" id="emptyS">Finished sessions appear here, ready to export for the poster.</div>
+      </div>
+      <div id="paneC" hidden>
+        <div id="chartWrap"><canvas id="charts" width="1500" height="560" aria-label="Results charts"></canvas></div>
+        <div class="head" style="border-top:1px solid var(--line);border-bottom:0">
+          <p class="note" style="margin-right:auto">Built from sessions with ground truth (scripted tests, or free sessions with an observer). Baseline = learning off, Adaptive = learning on.</p>
+          <button class="btn main" id="btnPng">Download charts (PNG)</button>
+        </div>
       </div>
       <div id="paneE" hidden><div class="log" id="log"></div><div class="empty" id="emptyE">Calibrations, nudges, returns and corrections are listed here as they happen.</div></div>
     </section>
@@ -283,6 +334,8 @@ tr:last-child td{border-bottom:0}
   <div class="halo"></div>
   <div class="stripe" aria-hidden="true" style="position:absolute;top:0;left:0;right:0"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
   <button class="btn" id="svExit">Back to console</button>
+  <p id="svTask" hidden></p>
+  <div id="svTaskBar" hidden><i id="svTaskFill"></i></div>
   <div class="mark"><i></i></div>
   <p id="svMsg">You’re on track.</p>
   <p id="svSub">Keep going. Only you can see this screen.</p>
@@ -301,8 +354,33 @@ const store = {
   set(k, v){ try{ localStorage.setItem("fb_"+k, JSON.stringify(v)); }catch{} }
 };
 
+// ---------- settings ----------
+const CAL_MS = 20000;          // calibration length (brief: 20–40 s)
+const COOLDOWN_MS = 8000;      // quiet time after a return or a correction
+const REPEAT_MS = 8000;        // no return this long after a nudge -> second nudge
+const GRACE_MS = 2000;         // an alert this soon after an off-task period still belongs to it
+const DEF = { tol:{up:15, down:15, left:20, right:20}, thr:5, lostThr:8 };
+
+// Scripted test: the volunteer follows timed instructions, so the correct answer is known in advance.
+// on = doing the task · off = truly off-task · test = natural on-task movement that tempts a false nudge.
+const SCRIPTS = {
+  reading: [
+    { k:"on",   d:20000, s:"اقرأ في الكتاب كعادتك" },
+    { k:"off",  d:12000, s:"انظر جانباً بعيداً عن الكتاب، وعُد للقراءة عند التنبيه" },
+    { k:"on",   d:15000, s:"عُد إلى القراءة" },
+    { k:"test", d:12000, s:"دوّن ملاحظة في الدفتر الذي بجانبك" },
+  ],
+  listening: [
+    { k:"on",   d:20000, s:"انظر إلى المتحدث أو الشاشة واستمع" },
+    { k:"off",  d:12000, s:"انشغل بشيء جانبي، وعُد للاستماع عند التنبيه" },
+    { k:"on",   d:15000, s:"عُد إلى الاستماع" },
+    { k:"test", d:12000, s:"اكتب ملاحظة سريعة عن الشرح" },
+  ]
+};
+const ROUNDS = 3;
+
 // ---------- state ----------
-let task = "reading";
+let task = "reading", mode = "script";
 let profiles = store.get("profiles", {});
 let sessions = store.get("sessions", []);
 let events = store.get("events", []);
@@ -310,10 +388,8 @@ let pose = { p:0, y:0, face:true };
 let simPose = { p:0, y:0 };
 let camOn = false, landmarker = null;
 let calib = null, sess = null, trail = [];
-let ghost = null;                 // zone before last adaptation {tol, until}
-let shown = null;                 // animated zone for drawing
+let ghost = null, shown = null;
 
-const DEF = { tol:{up:15, down:15, left:20, right:20}, thr:5, lostThr:8 };
 const pid = () => $("pid").value.trim() || "P01";
 function prof(){
   const id = pid();
@@ -325,10 +401,9 @@ const saveProfiles = () => store.set("profiles", profiles);
 const now = () => performance.now();
 
 // ---------- model + camera ----------
-let modelState = "loading", modelErr = "", camState = "off", camErr = "";
+let modelState = "loading", camState = "off";
 function setModelPill(){
-  const p = $("modelPill");
-  p.className = "pill " + (modelState === "ready" ? "ok" : modelState === "error" ? "bad" : "");
+  $("modelPill").className = "pill " + (modelState === "ready" ? "ok" : modelState === "error" ? "bad" : "");
   $("modelTxt").textContent = modelState === "ready" ? "Face model ready · runs on this device" :
     modelState === "error" ? "Face model failed: check internet, then reload" : "Loading face model…";
 }
@@ -342,7 +417,7 @@ const modelReady = (async () => {
     try{ landmarker = await FaceLandmarker.createFromOptions(files, opts("GPU")); }
     catch{ landmarker = await FaceLandmarker.createFromOptions(files, opts("CPU")); }
     modelState = "ready";
-  }catch(e){ modelState = "error"; modelErr = e.message || String(e); console.error(e); }
+  }catch(e){ modelState = "error"; console.error(e); }
   setModelPill(); setCamNote();
 })();
 function setCamNote(){
@@ -352,16 +427,15 @@ function setCamNote(){
   $("camTxt").textContent = camState === "error" ? "Camera blocked. Allow it from the address bar, then reload." :
     camState === "on" ? "Waiting for the face model…" : "Camera is off";
   $("simHint").hidden = camOn;
-  $("map").classList.toggle("sim", !camOn && camState !== "on");
+  $("map").classList.toggle("sim", camState !== "on");
 }
 $("btnCam").onclick = async () => {
   try{
     const stream = await navigator.mediaDevices.getUserMedia({ video:{ width:640, height:480, facingMode:"user" } });
     $("vid").srcObject = stream; await $("vid").play(); camState = "on";
-  }catch(e){ camState = "error"; camErr = e.name; }
+  }catch{ camState = "error"; }
   setCamNote(); await modelReady;
 };
-
 function angles(m){
   const r20=m[2], r21=m[6], r22=m[10];
   return { p: Math.atan2(r21, r22)*180/Math.PI, y: Math.asin(Math.max(-1, Math.min(1, -r20)))*180/Math.PI };
@@ -388,12 +462,38 @@ function inZone(){
   return dp <= t.up && dp >= -t.down && dy <= t.right && dy >= -t.left;
 }
 
+// ---------- voice + sound ----------
+let audioCtx = null, arVoice = null;
+function pickVoice(){ try{ arVoice = speechSynthesis.getVoices().find(v => v.lang && v.lang.toLowerCase().startsWith("ar")) || null; }catch{} }
+try{ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }catch{}
+function chime(freq = 660){
+  try{
+    audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.frequency.value = freq; o.connect(g); g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(.0001, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(.2, audioCtx.currentTime + .02);
+    g.gain.exponentialRampToValueAtTime(.0001, audioCtx.currentTime + .35); o.start(); o.stop(audioCtx.currentTime + .4);
+  }catch{}
+}
+function say(text){
+  if (!$("speakOn").checked) return;
+  try{
+    speechSynthesis.cancel();
+    if (!arVoice) return;
+    const u = new SpeechSynthesisUtterance(text); u.voice = arVoice; u.lang = arVoice.lang; u.rate = 1;
+    speechSynthesis.speak(u);
+  }catch{}
+}
+
 // ---------- events ----------
 const LABEL = {
-  calibrated: e => ["Calibrated", `${e.task} baseline set`],
-  session_start: e => ["Session started", `${e.task} · learning ${e.adapt ? "on" : "off"} · nudge after ${e.thr}s`],
-  session_end: e => ["Session ended", `${e.alerts} nudges, ${e.false} marked false`],
-  alert: e => ["Nudge sent", `after ${e.off_s.toFixed(1)}s away from the task`],
+  calibrated: e => ["Calibrated", `${e.task} baseline set (${e.seconds ?? 3}s)`],
+  session_start: e => ["Session started", `${e.task} · ${e.mode === "script" ? "scripted test" : "free session"} · learning ${e.adapt ? "on" : "off"} · nudge after ${e.thr}s`],
+  session_end: e => ["Session ended", `${e.alerts} nudges, ${e.false} marked “I was focused”`],
+  script_step: e => [`Script: ${e.kind === "off" ? "off-task" : e.kind === "test" ? "natural movement" : "on task"}`, e.text],
+  alert: e => ["Nudge sent", `after ${e.off_s.toFixed(1)}s away from the task${e.truth ? " · truth: " + e.truth : ""}`],
+  alert_repeat: () => ["Second nudge sent", "no return after the first nudge"],
+  teacher_notified: () => ["Teacher notified", "two nudges without a return"],
   alert_ack: () => ["Student tapped “I’m back”", ""],
   recovered: e => ["Back on task", `in ${e.return_s.toFixed(1)}s`],
   alert_false_reported: () => ["Student: “I was focused”", "marked as a false nudge"],
@@ -405,9 +505,9 @@ function diffTol(b, a){
   const parts = ["up","down","left","right"].filter(k => a.tol[k] !== b.tol[k]).map(k => `${k} ${b.tol[k].toFixed(0)}°→${a.tol[k].toFixed(0)}°`);
   if (a.thr !== b.thr) parts.push(`nudge after ${b.thr}s→${a.thr}s`);
   if (a.lostThr !== b.lostThr) parts.push(`face-hidden wait ${b.lostThr}s→${a.lostThr}s`);
-  return parts.join(" · ");
+  return parts.join(" · ") || "no change needed";
 }
-const CLS = { alert:"nudge-ev", recovered:"back-ev", adapted:"adapt-ev", observer_offtask_start:"obs-ev", observer_offtask_end:"obs-ev" };
+const CLS = { alert:"nudge-ev", alert_repeat:"nudge-ev", teacher_notified:"nudge-ev", recovered:"back-ev", adapted:"adapt-ev", observer_offtask_start:"obs-ev", observer_offtask_end:"obs-ev", script_step:"obs-ev" };
 function logEv(type, extra={}){
   const e = { t:new Date().toISOString(), session: sess ? sess.n : null, pid: pid(), task, type, ...extra };
   events.push(e); store.set("events", events); renderEv(e, true);
@@ -429,45 +529,92 @@ $("btnStart").onclick = () => {
   document.activeElement?.blur();
   const pr = prof();
   if (!pr.base){ flashCal(); return; }
-  sess = { n: sessions.length + 1, start: now(), pid: pid(), task, adapt: $("adaptOn").checked,
+  sess = { n: sessions.length + 1, start: now(), pid: pid(), task, mode, adapt: $("adaptOn").checked,
     state:"monitor", offStart:null, offBuf:[], alertAt:null, inSince:null, cooldownUntil:0,
-    alerts:[], falseCount:0, recov:[], onMs:0, offMs:0, lostMs:0, lastT: now(), samples:[], obs:[], obsOpen:null };
-  logEv("session_start", { adapt: sess.adapt, thr: pr.thr });
+    nudgesInEpisode:0, teacherSent:false, repeats:0, teacherNotices:0,
+    alerts:[], falseCount:0, recov:[], stays:[], stayFrom:null,
+    onMs:0, offMs:0, lostMs:0, lastT: now(), samples:[], obs:[], obsOpen:null, script:null };
+  logEv("session_start", { mode, adapt: sess.adapt, thr: pr.thr });
+  if (mode === "script") startScript();
   lockSetup(true);
 };
-$("btnStop").onclick = stopSession;
+$("btnStop").onclick = () => stopSession(false);
 function lockSetup(on){
-  ["btnStart","btnCal","tReading","tListening","pid","thrIn","adaptOn"].forEach(id => $(id).disabled = on);
-  $("btnStop").disabled = !on; $("btnObs").disabled = !on;
+  ["btnStart","btnCal","tReading","tListening","mScript","mFree","pid","thrIn","adaptOn"].forEach(id => $(id).disabled = on);
+  $("btnStop").disabled = !on; $("btnObs").disabled = !on || mode === "script";
+  $("scriptBox").hidden = !(on && mode === "script");
+  $("svTask").hidden = $("svTaskBar").hidden = !(on && mode === "script");
   steps();
 }
-function stopSession(){
+function inEpisode(a){ return sess.obs.some(([s,e]) => a.at >= s - 1000 && a.at <= e + GRACE_MS); }
+function scoreNow(extraObs = []){
+  const obs = sess.obs.concat(extraObs);
+  const episodes = obs.length;
+  const detected = obs.filter(([s,e]) => sess.alerts.some(a => a.at >= s - 1000 && a.at <= e + GRACE_MS)).length;
+  const truthFalse = episodes ? sess.alerts.filter(a => !obs.some(([s,e]) => a.at >= s - 1000 && a.at <= e + GRACE_MS)).length : null;
+  return { episodes, detected, truthFalse };
+}
+function stopSession(finished){
   if (!sess) return;
-  const t = now(), pr = prof();
+  const t = now();
   if (sess.obsOpen != null){ sess.obs.push([sess.obsOpen, t]); sess.obsOpen = null; setObs(false); }
-  const hit = a => sess.obs.some(([s,e]) => a.at >= s - 1000 && a.at <= e + pr.thr*1000);
-  const tp = sess.alerts.filter(hit).length, fp = sess.alerts.length - tp;
-  const fn = sess.obs.filter(([s,e]) => (e - s) >= pr.thr*1000 && !sess.alerts.some(a => a.at >= s - 1000 && a.at <= e + pr.thr*1000)).length;
-  const total = sess.onMs + sess.offMs + sess.lostMs || 1, has = sess.obs.length > 0;
-  const row = { n:sess.n, pid:sess.pid, task:sess.task, adapt:sess.adapt ? "on":"off",
+  const { episodes, detected, truthFalse } = scoreNow();
+  const total = sess.onMs + sess.offMs + sess.lostMs || 1, n = sess.alerts.length;
+  const mean = a => a.length ? +(a.reduce((x,y)=>x+y,0)/a.length/1000).toFixed(2) : null;
+  const row = { n:sess.n, pid:sess.pid, task:sess.task, mode:sess.mode, adapt:sess.adapt ? "on":"off",
+    completed: sess.mode === "script" ? finished : null,
     minutes:+((t - sess.start)/60000).toFixed(2), inZonePct:+(100*sess.onMs/total).toFixed(1),
-    alerts:sess.alerts.length, falseAlerts:sess.falseCount,
-    falsePct: sess.alerts.length ? +(100*sess.falseCount/sess.alerts.length).toFixed(1) : 0,
-    meanReturnS: sess.recov.length ? +(sess.recov.reduce((a,b)=>a+b,0)/sess.recov.length/1000).toFixed(2) : null,
-    tp: has ? tp : null, fp: has ? fp : null, fn: has ? fn : null, observed: has };
+    alerts:n, repeats:sess.repeats, teacherNotices:sess.teacherNotices,
+    falseReported:sess.falseCount, falseReportedPct: n ? +(100*sess.falseCount/n).toFixed(1) : 0,
+    episodes, detected, detectPct: episodes ? +(100*detected/episodes).toFixed(1) : null,
+    falseTruth: truthFalse, falseTruthPct: episodes && n ? +(100*truthFalse/n).toFixed(1) : (episodes ? 0 : null),
+    meanReturnS: mean(sess.recov), recovSumS:+(sess.recov.reduce((x,y)=>x+y,0)/1000).toFixed(2), recovN: sess.recov.length,
+    meanStayS: mean(sess.stays), observed: episodes > 0 };
   sessions.push(row); store.set("sessions", sessions);
-  logEv("session_end", { alerts: row.alerts, false: row.falseAlerts });
-  sess = null; hideNudge(); lockSetup(false); renderTable();
+  logEv("session_end", { alerts: n, false: sess.falseCount });
+  sess = null; hideNudge(); $("teacher").hidden = true; lockSetup(false); renderTable(); drawCharts();
 }
 
+// ---------- scripted test ----------
+function startScript(){
+  const segs = [];
+  for (let r = 0; r < ROUNDS; r++) SCRIPTS[task].forEach(s => segs.push({ ...s }));
+  sess.script = { segs, i:-1, segStart:0 };
+  nextSeg();
+}
+function nextSeg(){
+  const sc = sess.script, t = now();
+  const prev = sc.segs[sc.i];
+  if (prev && prev.k === "off" && sess.obsOpen != null){ sess.obs.push([sess.obsOpen, t]); sess.obsOpen = null; }
+  sc.i++;
+  if (sc.i >= sc.segs.length){ chime(880); say("انتهى الاختبار، شكراً لك"); stopSession(true); return; }
+  const seg = sc.segs[sc.i]; sc.segStart = t;
+  if (seg.k === "off") sess.obsOpen = t;
+  $("scrNow").textContent = seg.s; $("svTask").textContent = seg.s;
+  $("scrStep").textContent = `Step ${sc.i + 1} of ${sc.segs.length}`;
+  $("scrKind").innerHTML = seg.k === "off" ? '<span class="chip off">truly off-task</span>' : seg.k === "test" ? '<span class="chip test">natural movement</span>' : '<span class="chip">on task</span>';
+  chime(seg.k === "off" ? 520 : 660); say(seg.s);
+  logEv("script_step", { kind: seg.k, text: seg.s, step: sc.i + 1 });
+}
+function stepScript(t){
+  const sc = sess?.script; if (!sc) return;
+  const seg = sc.segs[sc.i], p = Math.min(1, (t - sc.segStart) / seg.d);
+  $("scrBar").style.width = $("svTaskFill").style.width = (p*100) + "%";
+  if (t - sc.segStart >= seg.d) nextSeg();
+}
+
+// ---------- monitoring loop ----------
 function step(t){
   if (!sess) return;
   const dt = Math.min(t - sess.lastT, 500); sess.lastT = t;
   const z = inZone(), pr = prof();
   if (z === true) sess.onMs += dt; else if (z === false) sess.offMs += dt; else sess.lostMs += dt;
   if (!sess.samples.length || t - sess.samples[sess.samples.length-1].t > 250) sess.samples.push({ t, z, obs: sess.obsOpen != null });
+
   if (sess.state === "monitor"){
-    if (z === true || t < sess.cooldownUntil){ sess.offStart = null; sess.offBuf = []; return; }
+    if (z === true){ sess.offStart = null; sess.offBuf = []; return; }
+    if (sess.stayFrom != null){ sess.stays.push(t - sess.stayFrom); sess.stayFrom = null; }
+    if (t < sess.cooldownUntil){ sess.offStart = null; sess.offBuf = []; return; }
     sess.offStart ??= t;
     sess.offBuf.push(pose.face ? rel() : null);
     if (t - sess.offStart >= limitMs()) raiseNudge(t);
@@ -477,9 +624,19 @@ function step(t){
       if (t - sess.inSince >= 800){
         const ms = sess.inSince - sess.alertAt;
         sess.recov.push(ms); logEv("recovered", { return_s: ms/1000 });
-        sess.state = "monitor"; sess.offStart = null; sess.offBuf = []; hideNudge();
+        sess.state = "monitor"; sess.offStart = null; sess.offBuf = [];
+        sess.cooldownUntil = t + COOLDOWN_MS; sess.stayFrom = t;
+        sess.nudgesInEpisode = 0; sess.teacherSent = false;
+        hideNudge(); $("teacher").hidden = true;
+        const sc = sess.script;
+        if (sc && sc.segs[sc.i].k === "off") nextSeg();   // volunteer returned: move on
       }
-    } else sess.inSince = null;
+    } else {
+      sess.inSince = null;
+      const since = t - sess.lastNudgeAt;
+      if (since >= REPEAT_MS && sess.nudgesInEpisode === 1){ repeatNudge(t); }
+      else if (since >= REPEAT_MS && sess.nudgesInEpisode >= 2 && !sess.teacherSent){ notifyTeacher(); }
+    }
   }
 }
 function limitMs(){
@@ -487,15 +644,38 @@ function limitMs(){
   const lost = buf.length ? buf.filter(x => x === null).length / buf.length : 0;
   return (lost > .5 ? pr.lostThr : pr.thr) * 1000;
 }
+function truthNow(t){
+  const sc = sess.script; if (!sc) return null;
+  const seg = sc.segs[sc.i], prev = sc.segs[sc.i - 1];
+  if (seg.k === "off") return "off";
+  if (prev && prev.k === "off" && t - sc.segStart < GRACE_MS) return "off";
+  return seg.k === "test" ? "on (natural movement)" : "on";
+}
 function raiseNudge(t){
-  sess.state = "alert"; sess.alertAt = t; sess.inSince = null;
-  sess.alerts.push({ at:t, buf: sess.offBuf.slice() });
-  logEv("alert", { off_s: (t - sess.offStart)/1000 });
+  sess.state = "alert"; sess.alertAt = t; sess.lastNudgeAt = t; sess.inSince = null; sess.nudgesInEpisode = 1;
+  const truth = truthNow(t);
+  sess.alerts.push({ at:t, buf: sess.offBuf.slice(), truth });
+  logEv("alert", { off_s: (t - sess.offStart)/1000, truth });
+  $("nudgeTitle").textContent = "Private nudge sent";
   $("nudge").hidden = false; $("svBtns").hidden = false;
   $("student").classList.add("alerting");
   $("svMsg").textContent = "Quick check: back to your task?"; $("svSub").textContent = "Tap “I was focused” if this nudge was wrong. The system learns from it.";
-  try{ navigator.vibrate && navigator.vibrate([180, 90, 180]); }catch{}
+  buzz();
 }
+function repeatNudge(t){
+  sess.nudgesInEpisode = 2; sess.lastNudgeAt = t; sess.repeats++;
+  logEv("alert_repeat");
+  $("nudgeTitle").textContent = "Second private nudge sent";
+  $("student").classList.remove("alerting"); void $("student").offsetWidth; $("student").classList.add("alerting");
+  buzz();
+}
+function notifyTeacher(){
+  sess.teacherSent = true; sess.teacherNotices++;
+  logEv("teacher_notified");
+  $("teacherTxt").textContent = `${sess.pid} has had two private nudges and has not returned to the ${sess.task === "reading" ? "reading" : "listening"} task.`;
+  $("teacher").hidden = false;
+}
+function buzz(){ try{ navigator.vibrate && navigator.vibrate([180, 90, 180]); }catch{} }
 function hideNudge(){
   $("nudge").hidden = true; $("svBtns").hidden = true; $("student").classList.remove("alerting");
   $("svMsg").textContent = "You’re on track."; $("svSub").textContent = "Keep going. Only you can see this screen.";
@@ -507,7 +687,9 @@ function studentFalse(){
   const a = sess.alerts[sess.alerts.length-1]; a.falseReported = true;
   logEv("alert_false_reported");
   if (sess.adapt) adapt(a.buf);
-  sess.state = "monitor"; sess.offStart = null; sess.offBuf = []; sess.cooldownUntil = now() + 3000; hideNudge();
+  sess.state = "monitor"; sess.offStart = null; sess.offBuf = []; sess.cooldownUntil = now() + COOLDOWN_MS;
+  sess.nudgesInEpisode = 0; sess.teacherSent = false;
+  hideNudge(); $("teacher").hidden = true;
 }
 const median = arr => { const s = [...arr].sort((a,b)=>a-b); return s.length ? s[Math.floor(s.length/2)] : 0; };
 function adapt(buf){
@@ -520,31 +702,36 @@ function adapt(buf){
     pr.tol.up = grow(pr.tol.up, dp); pr.tol.down = grow(pr.tol.down, -dp);
     pr.tol.right = grow(pr.tol.right, dy); pr.tol.left = grow(pr.tol.left, -dy);
   } else pr.lostThr = Math.min(20, pr.lostThr + 3);
-  pr.thr = Math.min(12, pr.thr + 1);
+  pr.thr = Math.min(8, +(pr.thr + 0.5).toFixed(1));     // small, capped, so real off-task is still caught
   saveProfiles(); $("thrIn").value = pr.thr;
   ghost = { tol: before.tol, until: now() + 15000 };
   logEv("adapted", { before, after:{ tol:{...pr.tol}, thr:pr.thr, lostThr:pr.lostThr } });
 }
 
 // ---------- calibration ----------
-$("btnCal").onclick = () => { calib = { start: now(), until: now() + 3000, samples: [] }; };
+$("btnCal").onclick = () => {
+  calib = { start: now(), until: now() + CAL_MS, samples: [] };
+  $("btnCal").disabled = true;
+  say(task === "reading" ? "انظر إلى كتابك كما تقرأ عادة" : "انظر إلى المتحدث كما تستمع عادة");
+};
 function stepCalib(t){
   if (!calib) return;
   if (pose.face) calib.samples.push({ p:pose.p, y:pose.y });
   if (t < calib.until) return;
-  if (calib.samples.length < 5){ calib = null; $("calInfo").textContent = "The face was not visible during calibration. Check the camera angle and try again."; return; }
+  $("btnCal").disabled = false;
+  if (calib.samples.length < 20){ calib = null; $("calInfo").textContent = "The face was not visible during calibration. Check the camera angle and try again."; return; }
   const pr = prof();
   pr.base = { p: median(calib.samples.map(s => s.p)), y: median(calib.samples.map(s => s.y)) };
-  saveProfiles(); calib = null; showSetup();
-  logEv("calibrated", { base_pitch: pr.base.p, base_yaw: pr.base.y });
+  saveProfiles(); calib = null; chime(880); showSetup();
+  logEv("calibrated", { base_pitch: pr.base.p, base_yaw: pr.base.y, seconds: CAL_MS/1000 });
 }
-function flashCal(){ const el = $("s2"); el.animate?.([{background:"color-mix(in srgb,var(--nudge) 18%,transparent)"},{background:"transparent"}], {duration:900}); }
+function flashCal(){ $("s2").animate?.([{background:"color-mix(in srgb,var(--nudge) 18%,transparent)"},{background:"transparent"}], {duration:900}); }
 function showSetup(){
   const pr = prof();
   $("thrIn").value = pr.thr;
   $("calInfo").textContent = pr.base
     ? `Done for ${pid()} · ${task}. Recalibrate if the camera or seat moves.`
-    : `Ask ${pid()} to look at their ${task === "reading" ? "book or worksheet" : "teacher or board"} as usual, then press Calibrate.`;
+    : `Ask ${pid()} to look at their ${task === "reading" ? "book or worksheet" : "teacher or screen"} as usual for 20 seconds.`;
   steps();
 }
 function steps(){
@@ -553,20 +740,35 @@ function steps(){
   $("s2").className = "step " + (cal ? "done" : "current");
   $("s3").className = "step " + (cal ? "current" : "");
 }
+function setMode(m){
+  mode = m;
+  $("mScript").setAttribute("aria-pressed", m === "script"); $("mFree").setAttribute("aria-pressed", m === "free");
+  const secs = SCRIPTS[task].reduce((a,s)=>a+s.d,0) * ROUNDS / 1000;
+  $("modeNote").textContent = m === "script"
+    ? `One volunteer follows ${ROUNDS * SCRIPTS[task].length} timed instructions (about ${Math.round(secs/60*10)/10} min). The correct answer is known in advance, so accuracy is scored automatically.`
+    : "A normal lesson. An observer presses O at the start and end of each real off-task moment.";
+  $("runNote").textContent = m === "script"
+    ? "The volunteer taps “I was focused” only if nudged while following an on-task instruction."
+    : "The observer presses O when the student truly stops working, and again when they return.";
+  $("btnObs").hidden = m === "script";
+}
 
 // ---------- controls ----------
-function setTask(t){ task = t; $("tReading").setAttribute("aria-pressed", t==="reading"); $("tListening").setAttribute("aria-pressed", t==="listening"); ghost = null; shown = null; showSetup(); }
+function setTask(t){ task = t; $("tReading").setAttribute("aria-pressed", t==="reading"); $("tListening").setAttribute("aria-pressed", t==="listening"); ghost = null; shown = null; setMode(mode); showSetup(); }
 $("tReading").onclick = () => setTask("reading");
 $("tListening").onclick = () => setTask("listening");
+$("mScript").onclick = () => setMode("script");
+$("mFree").onclick = () => setMode("free");
 $("pid").onchange = () => { shown = null; ghost = null; showSetup(); };
 $("thrIn").onchange = () => { const v = parseFloat($("thrIn").value); if (v >= 1 && v <= 30){ prof().thr = v; saveProfiles(); } $("thrIn").value = prof().thr; };
 $("btnBack").onclick = studentBack; $("svBack").onclick = studentBack;
 $("btnFalse").onclick = studentFalse; $("svFalse").onclick = studentFalse;
+$("btnTeacherOk").onclick = () => { $("teacher").hidden = true; };
 $("btnStudent").onclick = () => { $("student").hidden = false; };
 $("svExit").onclick = () => { $("student").hidden = true; };
 const setObs = on => $("btnObs").setAttribute("aria-pressed", on);
 function toggleObs(){
-  if (!sess) return;
+  if (!sess || mode === "script") return;
   const t = now();
   if (sess.obsOpen == null){ sess.obsOpen = t; setObs(true); logEv("observer_offtask_start"); }
   else { sess.obs.push([sess.obsOpen, t]); sess.obsOpen = null; setObs(false); logEv("observer_offtask_end"); }
@@ -578,10 +780,10 @@ document.addEventListener("keydown", e => {
   if (k === "o") toggleObs(); else if (k === "b") studentBack(); else if (k === "f") studentFalse();
 });
 function tab(which){
-  $("tabS").setAttribute("aria-selected", which === "s"); $("tabE").setAttribute("aria-selected", which === "e");
-  $("paneS").hidden = which !== "s"; $("paneE").hidden = which !== "e";
+  [["s","tabS","paneS"],["c","tabC","paneC"],["e","tabE","paneE"]].forEach(([w,t,p]) => { $(t).setAttribute("aria-selected", w === which); $(p).hidden = w !== which; });
+  if (which === "c") drawCharts();
 }
-$("tabS").onclick = () => tab("s"); $("tabE").onclick = () => tab("e");
+$("tabS").onclick = () => tab("s"); $("tabC").onclick = () => tab("c"); $("tabE").onclick = () => tab("e");
 
 // simulation
 const map = $("map"); let dragging = false;
@@ -600,30 +802,89 @@ function csv(rows){
   const esc = v => { const s = v == null ? "" : (typeof v === "object" ? JSON.stringify(v) : String(v)); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
   return [keys.join(","), ...rows.map(r => keys.map(k => esc(r[k])).join(","))].join("\n");
 }
-function download(name, text){
+function download(name, blob){
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([text], { type:"text/csv" })); a.download = name;
+  a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
 }
-$("btnCsv").onclick = () => download("focusback_sessions.csv", csv(sessions));
-$("btnEv").onclick = () => download("focusback_events.csv", csv(events));
+$("btnCsv").onclick = () => download("focusback_sessions.csv", new Blob([csv(sessions)], { type:"text/csv" }));
+$("btnEv").onclick = () => download("focusback_events.csv", new Blob([csv(events)], { type:"text/csv" }));
+$("btnPng").onclick = () => { drawCharts(true); $("charts").toBlob(b => { if (b) download("focusback_charts.png", b); drawCharts(); }, "image/png"); };
 let clearArmed = false;
 $("btnClear").onclick = () => {
   if (!clearArmed){ clearArmed = true; $("clearConfirm").hidden = false; setTimeout(() => { clearArmed = false; $("clearConfirm").hidden = true; }, 4000); return; }
   sessions = []; events = []; profiles = {};
   store.set("sessions", sessions); store.set("events", events); saveProfiles();
   $("log").textContent = ""; $("emptyE").hidden = false; $("clearConfirm").hidden = true; clearArmed = false;
-  ghost = null; shown = null; renderTable(); showSetup();
+  ghost = null; shown = null; renderTable(); showSetup(); drawCharts();
 };
 function renderTable(){
   const tb = $("sessTbl").querySelector("tbody"); tb.textContent = "";
   $("emptyS").hidden = sessions.length > 0; $("sessTbl").hidden = !sessions.length;
+  const pct = v => v == null ? "–" : v + "%";
   [...sessions].reverse().forEach(s => {
     const tr = document.createElement("tr");
-    const cells = [[s.n,1],[s.pid],[s.task],[s.adapt],[s.minutes,1],[s.inZonePct+"%",1],[s.alerts,1],[s.falseAlerts,1],[s.falsePct+"%",1],[s.meanReturnS ?? "–",1],[s.tp ?? "–",1],[s.fp ?? "–",1],[s.fn ?? "–",1]];
+    const det = s.episodes ? `${s.detected}/${s.episodes} (${s.detectPct}%)` : "–";
+    const cells = [[s.n,1],[s.pid],[s.task],[s.mode === "script" ? "scripted" + (s.completed === false ? " (stopped)" : "") : s.mode === "free" ? "free" : "–"],[s.adapt],[s.minutes,1],[s.alerts,1],[det,1],[pct(s.falseTruthPct),1],[s.falseReported ?? s.falseAlerts ?? "–",1],[s.meanReturnS ?? "–",1],[s.meanStayS ?? "–",1],[s.teacherNotices ?? "–",1]];
     cells.forEach(([v,n]) => { const td = document.createElement("td"); td.textContent = v; if (n) td.className = "n"; tr.appendChild(td); });
     tb.appendChild(tr);
   });
+}
+
+// ---------- charts ----------
+function aggregate(){
+  const out = {};
+  for (const t of ["reading","listening"]) for (const a of ["off","on"]){
+    const rows = sessions.filter(s => s.task === t && s.adapt === a && s.episodes > 0);
+    const alerts = rows.reduce((x,s)=>x+s.alerts,0), falseT = rows.reduce((x,s)=>x+(s.falseTruth||0),0);
+    const ep = rows.reduce((x,s)=>x+s.episodes,0), det = rows.reduce((x,s)=>x+s.detected,0);
+    const rs = rows.reduce((x,s)=>x+(s.recovSumS||0),0), rn = rows.reduce((x,s)=>x+(s.recovN||0),0);
+    out[t+"_"+a] = { n: rows.length, falsePct: alerts ? 100*falseT/alerts : null, detectPct: ep ? 100*det/ep : null, recov: rn ? rs/rn : null };
+  }
+  return out;
+}
+function drawCharts(forExport){
+  const c = $("charts"), g = c.getContext("2d"), W = c.width, H = c.height;
+  const light = forExport || !matchMedia("(prefers-color-scheme: dark)").matches;
+  const col = light ? { bg:"#ffffff", ink:"#0e3f3c", muted:"#5b726f", line:"#dcdccb", base:"#c9c9b6", adapt:"#3a93a6" }
+                    : { bg:"#0e3f3c", ink:"#f4f4e9", muted:"#a7bdb9", line:"#1e534e", base:"#5d7d79", adapt:"#6db8c9" };
+  g.fillStyle = col.bg; g.fillRect(0,0,W,H);
+  const A = aggregate();
+  const panels = [
+    { title:"False nudge rate", sub:"lower is better", key:"falsePct", unit:"%", max:100 },
+    { title:"Real off-task detected", sub:"should stay high", key:"detectPct", unit:"%", max:100 },
+    { title:"Attention recovery time", sub:"seconds from nudge to return", key:"recov", unit:"s", max:null },
+  ];
+  const pw = W/3, top = 120, bottom = H - 90;
+  g.textBaseline = "alphabetic";
+  panels.forEach((p, i) => {
+    const x0 = i*pw + 70, w = pw - 100;
+    g.fillStyle = col.ink; g.font = "600 28px 'IBM Plex Sans', sans-serif"; g.textAlign = "left"; g.fillText(p.title, x0, 52);
+    g.fillStyle = col.muted; g.font = "400 20px 'IBM Plex Sans', sans-serif"; g.fillText(p.sub, x0, 82);
+    const vals = ["reading","listening"].flatMap(t => [A[t+"_off"][p.key], A[t+"_on"][p.key]]).filter(v => v != null);
+    const max = p.max ?? Math.max(5, Math.ceil((Math.max(0, ...vals) * 1.25) / 5) * 5);
+    const y = v => bottom - (v / max) * (bottom - top);
+    g.strokeStyle = col.line; g.lineWidth = 1;
+    [0, .5, 1].forEach(f => { const yy = y(max*f); g.beginPath(); g.moveTo(x0, yy); g.lineTo(x0 + w, yy); g.stroke();
+      g.fillStyle = col.muted; g.font = "400 16px 'IBM Plex Mono', monospace"; g.textAlign = "right"; const tv = max*f; g.fillText((Number.isInteger(tv) ? tv : tv.toFixed(1)) + p.unit, x0 - 8, yy + 5); });
+    ["reading","listening"].forEach((t, j) => {
+      const gx = x0 + 30 + j * (w/2), bw = (w/2 - 70) / 2;
+      [["off", col.base], ["on", col.adapt]].forEach(([a, color], k) => {
+        const v = A[t+"_"+a][p.key], bx = gx + k*(bw + 10);
+        if (v == null){ g.fillStyle = col.muted; g.font = "400 16px 'IBM Plex Sans', sans-serif"; g.textAlign = "center"; g.fillText("no data", bx + bw/2, bottom - 10); return; }
+        g.fillStyle = color; g.fillRect(bx, y(v), bw, bottom - y(v));
+        g.fillStyle = col.ink; g.font = "600 20px 'IBM Plex Mono', monospace"; g.textAlign = "center";
+        g.fillText((p.unit === "s" ? v.toFixed(1) : Math.round(v)) + p.unit, bx + bw/2, y(v) - 10);
+      });
+      g.fillStyle = col.ink; g.font = "500 20px 'IBM Plex Sans', sans-serif"; g.textAlign = "center";
+      g.fillText(t === "reading" ? "Reading" : "Listening", gx + bw + 5, bottom + 32);
+    });
+  });
+  g.textAlign = "left"; g.font = "500 18px 'IBM Plex Sans', sans-serif";
+  g.fillStyle = col.base; g.fillRect(40, H - 34, 18, 18); g.fillStyle = col.ink; g.fillText("Baseline (learning off)", 66, H - 19);
+  g.fillStyle = col.adapt; g.fillRect(300, H - 34, 18, 18); g.fillStyle = col.ink; g.fillText("Adaptive (learning on)", 326, H - 19);
+  const n = Object.values(A).reduce((x,a)=>x+a.n,0);
+  g.fillStyle = col.muted; g.textAlign = "right"; g.fillText(`${n} session${n === 1 ? "" : "s"} with ground truth`, W - 40, H - 19);
 }
 
 // ---------- drawing ----------
@@ -637,12 +898,10 @@ function fit(c){
 function geom(W, H){ const s = Math.min(W / 110, (H - 20) / 80); return { s, cx: W/2, cy: H/2 }; }
 function rr(g, x, y, w, h, r){ g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, r) : g.rect(x, y, w, h); }
 function zoneRect(G, t){ return [G.cx - t.left*G.s, G.cy - t.up*G.s, (t.left + t.right)*G.s, (t.up + t.down)*G.s]; }
-
 function drawMap(){
   const [g, W, H] = fit(map), G = geom(W, H), pr = prof();
   const zone = tok("--zone"), ink = tok("--ink"), muted = tok("--muted"), line = tok("--line"), nudge = tok("--nudge");
   g.clearRect(0,0,W,H);
-  // concentric degree rings
   g.lineWidth = 1; g.strokeStyle = line;
   [15,30,45].forEach(d => { g.beginPath(); g.ellipse(G.cx, G.cy, d*G.s, d*G.s, 0, 0, Math.PI*2); g.stroke(); });
   g.beginPath(); g.moveTo(G.cx - 55*G.s, G.cy); g.lineTo(G.cx + 55*G.s, G.cy); g.moveTo(G.cx, G.cy - 40*G.s); g.lineTo(G.cx, G.cy + 40*G.s); g.stroke();
@@ -652,8 +911,6 @@ function drawMap(){
   g.fillText("up", G.cx, G.cy - 40*G.s + 14); g.fillText("down", G.cx, G.cy + 40*G.s - 4);
   g.textAlign = "left"; g.fillText("left", G.cx - 55*G.s + 4, G.cy + 16);
   g.textAlign = "right"; g.fillText("right", G.cx + 55*G.s - 4, G.cy + 16);
-
-  // animated zone
   const target = pr.tol;
   shown ??= { ...target };
   for (const k in target) shown[k] += (target[k] - shown[k]) * .08;
@@ -666,23 +923,18 @@ function drawMap(){
   g.globalAlpha = pr.base ? 1 : .35; g.strokeStyle = zone; g.lineWidth = 2; rr(g, zx, zy, zw, zh, 18); g.stroke(); g.globalAlpha = 1;
   g.fillStyle = zone; g.font = "600 12px " + tok("--sans"); g.textAlign = "left";
   g.fillText((task === "reading" ? "Reading" : "Listening") + " zone · " + pid(), zx + 10, zy + 18);
-
-  // calibration progress
   if (calib){
-    const p = Math.min(1, (now() - calib.start) / 3000);
+    const p = Math.min(1, (now() - calib.start) / CAL_MS);
     g.strokeStyle = ink; g.lineWidth = 4; g.lineCap = "round";
     g.beginPath(); g.arc(G.cx, G.cy, 34, -Math.PI/2, -Math.PI/2 + p*Math.PI*2); g.stroke(); g.lineCap = "butt";
   }
-
-  // head direction
   if (pose.face){
     const r = rel(), clamp = (v, m) => Math.max(-m, Math.min(m, v));
     const px = G.cx + clamp(r.dy, 54)*G.s, py = G.cy - clamp(r.dp, 39)*G.s;
     trail.push([px, py]); if (trail.length > 30) trail.shift();
     g.strokeStyle = ink; g.lineWidth = 2; g.globalAlpha = .18; g.beginPath();
     trail.forEach(([x,y], i) => i ? g.lineTo(x,y) : g.moveTo(x,y)); g.stroke(); g.globalAlpha = 1;
-    const out = inZone() === false;
-    g.fillStyle = out ? nudge : ink;
+    g.fillStyle = inZone() === false ? nudge : ink;
     g.globalAlpha = .18; g.beginPath(); g.arc(px, py, 16, 0, Math.PI*2); g.fill(); g.globalAlpha = 1;
     g.beginPath(); g.arc(px, py, 7, 0, Math.PI*2); g.fill();
   } else {
@@ -691,7 +943,6 @@ function drawMap(){
     g.fillText("Face not visible", G.cx, G.cy + 4);
   }
 }
-
 function drawTimeline(){
   const [g, W, H] = fit($("tl"));
   g.clearRect(0,0,W,H);
@@ -711,39 +962,41 @@ function drawTimeline(){
   sess.alerts.forEach(a => { const ax = x(a.at); g.beginPath(); g.moveTo(ax-5,3); g.lineTo(ax+5,3); g.lineTo(ax,12); g.fill(); });
   g.fillStyle = muted; g.font = "11px " + tok("--mono"); g.textAlign = "right"; g.fillText(fmt(span), W, 12);
 }
-
 const fmt = ms => { const s = Math.floor(ms/1000); return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); };
 function updateUI(){
   const z = inZone(), pr = prof();
-  let say, sub, meter = null;
-  if (calib){ say = "Calibrating…"; sub = `Keep looking at the ${task === "reading" ? "book or worksheet" : "teacher or board"}.`; }
-  else if (!pr.base){ say = "Calibrate to set this student’s zone"; sub = "The green area is where this student’s head can point while still on task."; }
-  else if (!sess){ say = z === true ? "Ready · on task" : z === false ? "Ready · looking away" : "Ready · face not visible"; sub = "Press Start in step 3 to begin measuring."; }
-  else if (sess.state === "alert"){ say = "Nudge sent"; sub = "Waiting for the student to return to the task."; }
-  else if (z === true){ say = "On task"; sub = `${task === "reading" ? "Reading" : "Listening"} · nothing to do.`; }
+  let sayT, sub, meter = null;
+  if (calib){ const left = Math.ceil((calib.until - now())/1000); sayT = `Calibrating… ${left}s`; sub = `Keep looking at the ${task === "reading" ? "book or worksheet" : "teacher or screen"} as usual.`; }
+  else if (!pr.base){ sayT = "Calibrate to set this student’s zone"; sub = "The blue area is where this student’s head can point while still on task."; }
+  else if (!sess){ sayT = z === true ? "Ready · on task" : z === false ? "Ready · looking away" : "Ready · face not visible"; sub = "Press Start in step 3 to begin."; }
+  else if (sess.state === "alert"){ sayT = sess.nudgesInEpisode >= 2 ? "Second nudge sent" : "Nudge sent"; sub = sess.teacherSent ? "Teacher has been notified." : "Waiting for the student to return to the task."; }
+  else if (z === true){ sayT = "On task"; sub = sess.script ? "Scripted test running." : `${task === "reading" ? "Reading" : "Listening"} · nothing to do.`; }
+  else if (now() < sess.cooldownUntil){ sayT = z === false ? "Looking away" : "Face not visible"; sub = "Quiet period after the last nudge."; }
   else {
     const el = (now() - (sess.offStart ?? now())) / 1000, lim = limitMs() / 1000;
-    say = z === false ? "Looking away" : "Face not visible";
-    sub = "A private nudge follows if this continues."; meter = [el, lim];
+    sayT = z === false ? "Looking away" : "Face not visible"; sub = "A private nudge follows if this continues."; meter = [el, lim];
   }
-  $("say").firstChild.textContent = say; $("saySub").textContent = sub;
+  $("say").firstChild.textContent = sayT; $("saySub").textContent = sub;
   $("meter").hidden = !meter;
   if (meter){ $("meterBar").style.width = Math.min(100, 100*meter[0]/meter[1]) + "%"; $("meterTxt").textContent = `${meter[0].toFixed(1)} of ${meter[1]}s`; }
   if (sess){
-    const total = sess.onMs + sess.offMs + sess.lostMs;
+    const total = sess.onMs + sess.offMs + sess.lostMs, n = sess.alerts.length;
+    const mean = a => a.length ? (a.reduce((x,y)=>x+y,0)/a.length/1000).toFixed(1) + "s" : "–";
     $("mDur").textContent = fmt(now() - sess.start);
     $("mOn").textContent = total ? Math.round(100*sess.onMs/total) + "%" : "–";
-    $("mAl").textContent = sess.alerts.length; $("mFa").textContent = sess.falseCount;
-    $("mRec").textContent = sess.recov.length ? (sess.recov.reduce((a,b)=>a+b,0)/sess.recov.length/1000).toFixed(1) + "s" : "–";
-    const obs = sess.obs.concat(sess.obsOpen != null ? [[sess.obsOpen, now()]] : []);
-    $("mPr").textContent = obs.length && sess.alerts.length
-      ? Math.round(100 * sess.alerts.filter(a => obs.some(([s,e]) => a.at >= s - 1000 && a.at <= e + pr.thr*1000)).length / sess.alerts.length) + "%" : "–";
+    $("mAl").textContent = n; $("mFa").textContent = sess.falseCount;
+    $("mRec").textContent = mean(sess.recov); $("mStay").textContent = mean(sess.stays);
+    const open = sess.obsOpen != null ? [[sess.obsOpen, now()]] : [];
+    const s = scoreNow(open);
+    $("mDet").textContent = s.episodes ? `${s.detected}/${s.episodes}` : "–";
+    $("mFalse").textContent = s.episodes && n ? Math.round(100*s.truthFalse/n) + "%" : "–";
   }
 }
 
-function loop(t){ sense(t); stepCalib(now()); step(now()); drawMap(); drawTimeline(); updateUI(); requestAnimationFrame(loop); }
+function loop(t){ sense(t); stepCalib(now()); step(now()); stepScript(now()); drawMap(); drawTimeline(); updateUI(); requestAnimationFrame(loop); }
 
-setModelPill(); setCamNote(); showSetup(); renderTable();
+setModelPill(); setCamNote(); setMode("script"); showSetup(); renderTable(); drawCharts();
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => drawCharts());
 [...events].slice(-80).reverse().forEach(e => renderEv(e, false));
 requestAnimationFrame(loop);
 </script>
