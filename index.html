@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FocusBack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: an instrument, not a dashboard. Left rail = the three real steps of a session.
+   Centre = the attention-zone map (the signature: the zone visibly grows when the system adapts),
+   with the desk camera as a small inset. Below = results. */
+/* SAIF 2026 visual identity: cream ground, deep teal ink, five-colour pixel squares and stripe. */
+:root{
+  --paper:#f4f4e9;  --surface:#ffffff; --sunk:#efefe2;
+  --ink:#0e3f3c;    --muted:#5b726f;   --line:#dcdccb;
+  --zone:#3a93a6;   --nudge:#f3a05e;   --observer:#663333; --lost:#c9c9b6;
+  --c1:#c95d4f; --c2:#f3a05e; --c3:#6db8c9; --c4:#efc3bf; --c5:#663333;
+  --display:"IBM Plex Sans","IBM Plex Sans Arabic",system-ui,sans-serif;
+  --sans:"IBM Plex Sans","IBM Plex Sans Arabic",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:14px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --paper:#0a2f2c; --surface:#0e3f3c; --sunk:#0b3633;
+  --ink:#f4f4e9;   --muted:#a7bdb9;   --line:#1e534e;
+  --zone:#6db8c9;  --nudge:#f3a05e;   --observer:#efc3bf; --lost:#3f625e;
+  color-scheme:dark}}
+.stripe{display:flex;height:8px}
+.stripe i{flex:1}
+.stripe i:nth-child(5n+1){background:var(--c1)} .stripe i:nth-child(5n+2){background:var(--c2)}
+.stripe i:nth-child(5n+3){background:var(--c3)} .stripe i:nth-child(5n+4){background:var(--c4)}
+.stripe i:nth-child(5n+5){background:var(--c5)}
+.pixels{display:grid;grid-template-columns:repeat(3,12px);grid-auto-rows:12px;flex:none}
+.pixels i:nth-child(1){background:var(--c3)} .pixels i:nth-child(2){background:var(--c2)} .pixels i:nth-child(3){background:var(--c1)}
+.pixels i:nth-child(4){background:transparent} .pixels i:nth-child(5){background:var(--c4)} .pixels i:nth-child(6){background:var(--c5)}
+.pixels i:nth-child(7),.pixels i:nth-child(8){background:transparent} .pixels i:nth-child(9){background:var(--c2)}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--zone);outline-offset:2px}
+
+/* Top bar */
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;padding:18px max(16px,3vw)}
+.brand{display:flex;align-items:baseline;gap:12px;margin-right:auto}
+.brand h1{margin:0;font:700 26px/1 var(--display);letter-spacing:-.01em}
+.brand span{color:var(--muted);font-size:13px}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:13px;font-weight:500}
+.pill i{width:8px;height:8px;border-radius:50%;background:var(--lost)}
+.pill.ok i{background:var(--zone)} .pill.bad i{background:var(--nudge)}
+
+/* Grid */
+.grid{display:grid;grid-template-columns:320px minmax(0,1fr);gap:20px;padding:0 max(16px,3vw) 40px;align-items:start}
+@media (max-width:980px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+
+/* Steps rail */
+.rail{display:flex;flex-direction:column}
+.step{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:12px}
+.step:last-child{border-bottom:0}
+.step h2{margin:0;display:flex;align-items:center;gap:10px;font:600 15px/1.2 var(--sans)}
+.step h2 b{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--sunk);border:1px solid var(--line);font:500 12px var(--mono);color:var(--muted)}
+.step.done h2 b{background:var(--zone);border-color:var(--zone);color:var(--surface)}
+.step.current h2 b{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.step p{margin:0;font-size:13px;color:var(--muted)}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:500;color:var(--muted);min-width:0}
+.field input{background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:500 14px var(--mono);min-width:0;width:100%}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
+.seg button{border:0;background:transparent;border-radius:7px;padding:8px;font-weight:500;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgb(0 0 0 / .12)}
+.seg button:disabled{cursor:not-allowed}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px}
+.toggle small{display:block;color:var(--muted);font-size:12px}
+.switch{position:relative;width:40px;height:22px;flex:none}
+.switch input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.switch span{position:absolute;inset:0;border-radius:999px;background:var(--line);transition:background .2s}
+.switch span::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--surface);transition:transform .2s}
+.switch input:checked + span{background:var(--zone)}
+.switch input:checked + span::after{transform:translateX(18px)}
+.switch input:focus-visible + span{outline:2px solid var(--zone);outline-offset:2px}
+
+.btn{border:1px solid var(--line);background:var(--sunk);border-radius:10px;padding:10px 14px;font-weight:600;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn:hover:not(:disabled){border-color:var(--muted)}
+.btn.main{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.btn.main:hover:not(:disabled){filter:brightness(1.15)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.wide{width:100%}
+.btn kbd{font:500 11px var(--mono);padding:1px 5px;border-radius:4px;border:1px solid currentColor;opacity:.6}
+.obs{border:1.5px dashed var(--observer);color:var(--observer);background:transparent}
+.obs[aria-pressed=true]{background:var(--observer);color:#fff;border-style:solid}
+.note{font-size:12px;color:var(--muted);margin:0}
+
+/* Stage */
+.stage{display:flex;flex-direction:column;gap:20px;min-width:0}
+.mapcard{position:relative;overflow:hidden}
+.maphead{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;padding:20px 22px 0}
+.say{font:700 clamp(22px,3vw,32px)/1.1 var(--display);letter-spacing:-.02em;margin:0;text-wrap:balance}
+.say small{display:block;font:400 14px/1.4 var(--sans);color:var(--muted);letter-spacing:0;margin-top:6px}
+.meter{flex:1 1 180px;max-width:260px}
+.meter .bar{height:6px;border-radius:999px;background:var(--sunk);border:1px solid var(--line);overflow:hidden}
+.meter .bar i{display:block;height:100%;width:0;background:var(--nudge);transition:width .15s linear}
+.meter span{display:block;font:500 12px var(--mono);color:var(--muted);margin-top:6px;text-align:right}
+#map{display:block;width:100%;height:clamp(300px,46vw,460px);cursor:default;touch-action:none}
+#map.sim{cursor:crosshair}
+.inset{position:absolute;right:16px;bottom:16px;width:min(32%,220px);aspect-ratio:4/3;border-radius:10px;overflow:hidden;background:#0b0f1c;border:3px solid var(--surface);box-shadow:0 6px 24px rgb(0 0 0 / .25)}
+.inset video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
+.inset .camnote{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px;text-align:center;color:#c9d0e2;font-size:11px;line-height:1.35}
+.inset .camnote .btn{padding:6px 10px;font-size:12px;background:#fff;color:#1b2440;border:0}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;padding:0 22px 18px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px}
+
+/* Nudge panel */
+.nudge{display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px;padding:16px 20px;border:1.5px solid var(--nudge);background:color-mix(in srgb,var(--nudge) 12%,var(--surface));border-radius:var(--r)}
+.nudge h3{margin:0;font:700 18px/1.2 var(--display)}
+.nudge p{margin:2px 0 0;font-size:13px;color:var(--muted)}
+.nudge .acts{display:flex;gap:10px;margin-left:auto;flex-wrap:wrap}
+
+/* Timeline */
+.tl{padding:16px 22px}
+.tl canvas{display:block;width:100%;height:56px}
+
+/* Metrics */
+.metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}
+@media (max-width:760px){.metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.metric{padding:16px 18px;border-right:1px solid var(--line);min-width:0}
+.metric:last-child{border-right:0}
+@media (max-width:760px){.metric:nth-child(3n){border-right:0}.metric:nth-child(-n+3){border-bottom:1px solid var(--line)}}
+.metric b{display:block;font:500 26px/1.1 var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.metric span{font-size:12px;color:var(--muted)}
+
+/* Results */
+.results .head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.tabs{display:flex;gap:4px;margin-right:auto}
+.tabs button{border:0;background:transparent;padding:6px 10px;border-radius:8px;font-weight:600;font-size:14px;color:var(--muted);cursor:pointer}
+.tabs button[aria-selected=true]{background:var(--sunk);color:var(--ink)}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-weight:500;color:var(--muted);font-size:12px;background:var(--sunk)}
+td.n{font-family:var(--mono)}
+tr:last-child td{border-bottom:0}
+.empty{padding:28px 18px;color:var(--muted);font-size:14px;text-align:center}
+.log{max-height:300px;overflow:auto;padding:6px 0}
+.ev{display:grid;grid-template-columns:74px 10px minmax(0,1fr);gap:10px;align-items:baseline;padding:6px 18px;font-size:13px}
+.ev time{font:12px var(--mono);color:var(--muted)}
+.ev i{width:8px;height:8px;border-radius:50%;background:var(--lost);align-self:center}
+.ev.nudge-ev i{background:var(--nudge)} .ev.back-ev i{background:var(--zone)} .ev.obs-ev i,.ev.adapt-ev i{background:var(--observer)}
+.ev .d{color:var(--muted)}
+.confirm{font-size:12px;color:var(--nudge);font-weight:600}
+
+/* Student screen */
+#student{position:fixed;inset:0;z-index:20;background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:24px;text-align:center}
+#student .halo{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 0 var(--nudge);transition:box-shadow .5s ease}
+#student.alerting .halo{box-shadow:inset 0 0 0 16px var(--nudge)}
+#student .mark{width:96px;height:96px;border-radius:50%;border:3px solid var(--zone);display:grid;place-items:center}
+#student .mark i{width:26px;height:26px;border-radius:50%;background:var(--zone);transition:background .3s}
+#student.alerting .mark{border-color:var(--nudge)} #student.alerting .mark i{background:var(--nudge)}
+#svMsg{font:700 clamp(28px,5vw,44px)/1.15 var(--display);letter-spacing:-.02em;margin:0;max-width:16ch}
+#svSub{margin:0;color:var(--muted);max-width:40ch}
+#student .acts{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+#student .acts .btn{padding:14px 22px;font-size:16px}
+#svExit{position:absolute;top:24px;right:16px;font-size:12px;padding:6px 10px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="stripe" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+
+<header class="top">
+  <div class="brand"><h1>FocusBack</h1><span>Adaptive attention support · research prototype</span></div>
+  <span class="pill" id="modelPill"><i></i><span id="modelTxt">Loading face model…</span></span>
+  <button class="btn" id="btnStudent">Open student screen</button>
+  <div class="pixels" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+</header>
+
+<div class="grid">
+  <!-- Steps -->
+  <aside class="card rail" aria-label="Session steps">
+    <section class="step current" id="s1">
+      <h2><b>1</b>Student and task</h2>
+      <div class="fields">
+        <label class="field">Student code<input id="pid" value="P01" autocomplete="off" maxlength="8"></label>
+        <label class="field">Nudge after (s)<input id="thrIn" inputmode="decimal" maxlength="4"></label>
+      </div>
+      <div class="seg" role="group" aria-label="Current task">
+        <button id="tReading" aria-pressed="true">Reading</button>
+        <button id="tListening" aria-pressed="false">Listening</button>
+      </div>
+      <div class="toggle">
+        <span>Learn from corrections<small>Turn off for the comparison session</small></span>
+        <label class="switch"><input type="checkbox" id="adaptOn" checked aria-label="Learn from corrections"><span></span></label>
+      </div>
+    </section>
+
+    <section class="step" id="s2">
+      <h2><b>2</b>Calibrate</h2>
+      <p id="calInfo">Ask the student to look at their work as they normally would for this task, then press Calibrate.</p>
+      <button class="btn wide" id="btnCal">Calibrate · 3 seconds</button>
+    </section>
+
+    <section class="step" id="s3">
+      <h2><b>3</b>Run the session</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <button class="btn main" id="btnStart">Start</button>
+        <button class="btn" id="btnStop" disabled>Stop</button>
+      </div>
+      <button class="btn wide obs" id="btnObs" aria-pressed="false" disabled>Observer: really off-task <kbd>O</kbd></button>
+      <p class="note">The observer presses O when the student truly stops working, and again when they return. This is the ground truth used to score accuracy.</p>
+    </section>
+  </aside>
+
+  <!-- Stage -->
+  <main class="stage">
+    <section class="card mapcard" aria-label="Attention zone">
+      <div class="maphead">
+        <p class="say" id="say">Calibrate to set this student’s zone<small id="saySub">The green area is where this student’s head can point while still on task.</small></p>
+        <div class="meter" id="meter" hidden><div class="bar"><i id="meterBar"></i></div><span id="meterTxt"></span></div>
+      </div>
+      <canvas id="map" aria-label="Head direction relative to the student’s calibrated zone"></canvas>
+      <div class="inset">
+        <video id="vid" playsinline muted></video>
+        <div class="camnote" id="camNote"><span id="camTxt">Camera is off</span><button class="btn" id="btnCam">Start camera</button></div>
+      </div>
+      <div class="legend">
+        <span><i style="background:color-mix(in srgb,var(--zone) 30%,transparent);border:1.5px solid var(--zone)"></i>On-task zone</span>
+        <span><i style="border:1.5px dashed var(--muted)"></i>Zone before last correction</span>
+        <span><i style="background:var(--ink);border-radius:50%"></i>Head direction now</span>
+        <span id="simHint">No camera? Drag on the map to simulate.</span>
+      </div>
+    </section>
+
+    <section class="nudge" id="nudge" hidden aria-live="polite">
+      <div><h3>Private nudge sent</h3><p>Waiting for the student to return. Recovery time is measured automatically.</p></div>
+      <div class="acts">
+        <button class="btn main" id="btnBack">I’m back <kbd>B</kbd></button>
+        <button class="btn" id="btnFalse">I was focused <kbd>F</kbd></button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="tl"><canvas id="tl" aria-label="Session timeline"></canvas></div>
+      <div class="legend">
+        <span><i style="background:var(--zone)"></i>On task</span><span><i style="background:var(--nudge)"></i>Looking away</span>
+        <span><i style="background:var(--lost)"></i>Face not visible</span><span><i style="background:var(--observer)"></i>Observer: off-task</span><span>▼ nudge</span>
+      </div>
+      <div class="metrics" style="border-top:1px solid var(--line)">
+        <div class="metric"><b id="mDur">0:00</b><span>Session time</span></div>
+        <div class="metric"><b id="mOn">–</b><span>Time on task</span></div>
+        <div class="metric"><b id="mAl">0</b><span>Nudges</span></div>
+        <div class="metric"><b id="mFa">0</b><span>Marked as false</span></div>
+        <div class="metric"><b id="mRec">–</b><span>Avg. return time</span></div>
+        <div class="metric"><b id="mPr">–</b><span>Agreement with observer</span></div>
+      </div>
+    </section>
+
+    <section class="card results">
+      <div class="head">
+        <div class="tabs" role="tablist">
+          <button role="tab" id="tabS" aria-selected="true">Sessions</button>
+          <button role="tab" id="tabE" aria-selected="false">Event log</button>
+        </div>
+        <span class="confirm" id="clearConfirm" hidden>Press again to delete everything</span>
+        <button class="btn" id="btnCsv">Export sessions</button>
+        <button class="btn" id="btnEv">Export events</button>
+        <button class="btn" id="btnClear">Clear all data</button>
+      </div>
+      <div id="paneS">
+        <div class="tablewrap"><table id="sessTbl"><thead><tr>
+          <th>#</th><th>Student</th><th>Task</th><th>Learning</th><th>Minutes</th><th>On task</th><th>Nudges</th><th>False</th><th>False rate</th><th>Return (s)</th><th>TP</th><th>FP</th><th>FN</th></tr></thead><tbody></tbody></table></div>
+        <div class="empty" id="emptyS">Finished sessions appear here, ready to export for the poster.</div>
+      </div>
+      <div id="paneE" hidden><div class="log" id="log"></div><div class="empty" id="emptyE">Calibrations, nudges, returns and corrections are listed here as they happen.</div></div>
+    </section>
+  </main>
+</div>
+
+<div id="student" hidden>
+  <div class="halo"></div>
+  <div class="stripe" aria-hidden="true" style="position:absolute;top:0;left:0;right:0"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <button class="btn" id="svExit">Back to console</button>
+  <div class="mark"><i></i></div>
+  <p id="svMsg">You’re on track.</p>
+  <p id="svSub">Keep going. Only you can see this screen.</p>
+  <div class="acts" id="svBtns" hidden>
+    <button class="btn main" id="svBack">I’m back</button>
+    <button class="btn" id="svFalse">I was focused</button>
+  </div>
+</div>
+
+<script type="module">
+import { FilesetResolver, FaceLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem("fb_"+k); return v ? JSON.parse(v) : d; }catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem("fb_"+k, JSON.stringify(v)); }catch{} }
+};
+
+// ---------- state ----------
+let task = "reading";
+let profiles = store.get("profiles", {});
+let sessions = store.get("sessions", []);
+let events = store.get("events", []);
+let pose = { p:0, y:0, face:true };
+let simPose = { p:0, y:0 };
+let camOn = false, landmarker = null;
+let calib = null, sess = null, trail = [];
+let ghost = null;                 // zone before last adaptation {tol, until}
+let shown = null;                 // animated zone for drawing
+
+const DEF = { tol:{up:15, down:15, left:20, right:20}, thr:5, lostThr:8 };
+const pid = () => $("pid").value.trim() || "P01";
+function prof(){
+  const id = pid();
+  profiles[id] ??= {};
+  profiles[id][task] ??= { base:null, tol:{...DEF.tol}, thr:DEF.thr, lostThr:DEF.lostThr };
+  return profiles[id][task];
+}
+const saveProfiles = () => store.set("profiles", profiles);
+const now = () => performance.now();
+
+// ---------- model + camera ----------
+let modelState = "loading", modelErr = "", camState = "off", camErr = "";
+function setModelPill(){
+  const p = $("modelPill");
+  p.className = "pill " + (modelState === "ready" ? "ok" : modelState === "error" ? "bad" : "");
+  $("modelTxt").textContent = modelState === "ready" ? "Face model ready · runs on this device" :
+    modelState === "error" ? "Face model failed: check internet, then reload" : "Loading face model…";
+}
+const modelReady = (async () => {
+  try{
+    const files = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+    const opts = delegate => ({
+      baseOptions:{ modelAssetPath:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task", delegate },
+      runningMode:"VIDEO", numFaces:1, outputFacialTransformationMatrixes:true
+    });
+    try{ landmarker = await FaceLandmarker.createFromOptions(files, opts("GPU")); }
+    catch{ landmarker = await FaceLandmarker.createFromOptions(files, opts("CPU")); }
+    modelState = "ready";
+  }catch(e){ modelState = "error"; modelErr = e.message || String(e); console.error(e); }
+  setModelPill(); setCamNote();
+})();
+function setCamNote(){
+  camOn = camState === "on" && modelState === "ready";
+  $("camNote").hidden = camOn;
+  $("btnCam").hidden = camState === "on";
+  $("camTxt").textContent = camState === "error" ? "Camera blocked. Allow it from the address bar, then reload." :
+    camState === "on" ? "Waiting for the face model…" : "Camera is off";
+  $("simHint").hidden = camOn;
+  $("map").classList.toggle("sim", !camOn && camState !== "on");
+}
+$("btnCam").onclick = async () => {
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({ video:{ width:640, height:480, facingMode:"user" } });
+    $("vid").srcObject = stream; await $("vid").play(); camState = "on";
+  }catch(e){ camState = "error"; camErr = e.name; }
+  setCamNote(); await modelReady;
+};
+
+function angles(m){
+  const r20=m[2], r21=m[6], r22=m[10];
+  return { p: Math.atan2(r21, r22)*180/Math.PI, y: Math.asin(Math.max(-1, Math.min(1, -r20)))*180/Math.PI };
+}
+let lastVT = -1;
+function sense(t){
+  if (camOn && $("vid").readyState >= 2){
+    if ($("vid").currentTime === lastVT) return;
+    lastVT = $("vid").currentTime;
+    const mats = landmarker.detectForVideo($("vid"), t).facialTransformationMatrixes;
+    if (mats && mats.length){
+      const a = angles(mats[0].data), k = .35;
+      pose = pose.face ? { p:pose.p+(a.p-pose.p)*k, y:pose.y+(a.y-pose.y)*k, face:true } : { ...a, face:true };
+    } else pose = { ...pose, face:false };
+  } else if (camState === "on") pose = { ...pose, face:false };
+  else pose = { p:simPose.p, y:simPose.y, face:true };
+}
+
+// ---------- zone ----------
+function rel(){ const b = prof().base || {p:0,y:0}; return { dp: pose.p - b.p, dy: pose.y - b.y }; }
+function inZone(){
+  if (!pose.face) return null;
+  const { dp, dy } = rel(), t = prof().tol;
+  return dp <= t.up && dp >= -t.down && dy <= t.right && dy >= -t.left;
+}
+
+// ---------- events ----------
+const LABEL = {
+  calibrated: e => ["Calibrated", `${e.task} baseline set`],
+  session_start: e => ["Session started", `${e.task} · learning ${e.adapt ? "on" : "off"} · nudge after ${e.thr}s`],
+  session_end: e => ["Session ended", `${e.alerts} nudges, ${e.false} marked false`],
+  alert: e => ["Nudge sent", `after ${e.off_s.toFixed(1)}s away from the task`],
+  alert_ack: () => ["Student tapped “I’m back”", ""],
+  recovered: e => ["Back on task", `in ${e.return_s.toFixed(1)}s`],
+  alert_false_reported: () => ["Student: “I was focused”", "marked as a false nudge"],
+  adapted: e => ["Zone adjusted", diffTol(e.before, e.after)],
+  observer_offtask_start: () => ["Observer: off-task started", ""],
+  observer_offtask_end: () => ["Observer: off-task ended", ""],
+};
+function diffTol(b, a){
+  const parts = ["up","down","left","right"].filter(k => a.tol[k] !== b.tol[k]).map(k => `${k} ${b.tol[k].toFixed(0)}°→${a.tol[k].toFixed(0)}°`);
+  if (a.thr !== b.thr) parts.push(`nudge after ${b.thr}s→${a.thr}s`);
+  if (a.lostThr !== b.lostThr) parts.push(`face-hidden wait ${b.lostThr}s→${a.lostThr}s`);
+  return parts.join(" · ");
+}
+const CLS = { alert:"nudge-ev", recovered:"back-ev", adapted:"adapt-ev", observer_offtask_start:"obs-ev", observer_offtask_end:"obs-ev" };
+function logEv(type, extra={}){
+  const e = { t:new Date().toISOString(), session: sess ? sess.n : null, pid: pid(), task, type, ...extra };
+  events.push(e); store.set("events", events); renderEv(e, true);
+}
+function renderEv(e, prepend){
+  const [title, detail] = (LABEL[e.type] || (() => [e.type, ""]))(e);
+  const row = document.createElement("div"); row.className = "ev " + (CLS[e.type] || "");
+  const tm = document.createElement("time"); tm.textContent = new Date(e.t).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  const dot = document.createElement("i");
+  const tx = document.createElement("div"); tx.textContent = (e.pid ? e.pid + " · " : "") + title;
+  if (detail){ const d = document.createElement("span"); d.className = "d"; d.textContent = " — " + detail; tx.appendChild(d); }
+  row.append(tm, dot, tx);
+  prepend ? $("log").prepend(row) : $("log").append(row);
+  $("emptyE").hidden = true;
+}
+
+// ---------- session ----------
+$("btnStart").onclick = () => {
+  document.activeElement?.blur();
+  const pr = prof();
+  if (!pr.base){ flashCal(); return; }
+  sess = { n: sessions.length + 1, start: now(), pid: pid(), task, adapt: $("adaptOn").checked,
+    state:"monitor", offStart:null, offBuf:[], alertAt:null, inSince:null, cooldownUntil:0,
+    alerts:[], falseCount:0, recov:[], onMs:0, offMs:0, lostMs:0, lastT: now(), samples:[], obs:[], obsOpen:null };
+  logEv("session_start", { adapt: sess.adapt, thr: pr.thr });
+  lockSetup(true);
+};
+$("btnStop").onclick = stopSession;
+function lockSetup(on){
+  ["btnStart","btnCal","tReading","tListening","pid","thrIn","adaptOn"].forEach(id => $(id).disabled = on);
+  $("btnStop").disabled = !on; $("btnObs").disabled = !on;
+  steps();
+}
+function stopSession(){
+  if (!sess) return;
+  const t = now(), pr = prof();
+  if (sess.obsOpen != null){ sess.obs.push([sess.obsOpen, t]); sess.obsOpen = null; setObs(false); }
+  const hit = a => sess.obs.some(([s,e]) => a.at >= s - 1000 && a.at <= e + pr.thr*1000);
+  const tp = sess.alerts.filter(hit).length, fp = sess.alerts.length - tp;
+  const fn = sess.obs.filter(([s,e]) => (e - s) >= pr.thr*1000 && !sess.alerts.some(a => a.at >= s - 1000 && a.at <= e + pr.thr*1000)).length;
+  const total = sess.onMs + sess.offMs + sess.lostMs || 1, has = sess.obs.length > 0;
+  const row = { n:sess.n, pid:sess.pid, task:sess.task, adapt:sess.adapt ? "on":"off",
+    minutes:+((t - sess.start)/60000).toFixed(2), inZonePct:+(100*sess.onMs/total).toFixed(1),
+    alerts:sess.alerts.length, falseAlerts:sess.falseCount,
+    falsePct: sess.alerts.length ? +(100*sess.falseCount/sess.alerts.length).toFixed(1) : 0,
+    meanReturnS: sess.recov.length ? +(sess.recov.reduce((a,b)=>a+b,0)/sess.recov.length/1000).toFixed(2) : null,
+    tp: has ? tp : null, fp: has ? fp : null, fn: has ? fn : null, observed: has };
+  sessions.push(row); store.set("sessions", sessions);
+  logEv("session_end", { alerts: row.alerts, false: row.falseAlerts });
+  sess = null; hideNudge(); lockSetup(false); renderTable();
+}
+
+function step(t){
+  if (!sess) return;
+  const dt = Math.min(t - sess.lastT, 500); sess.lastT = t;
+  const z = inZone(), pr = prof();
+  if (z === true) sess.onMs += dt; else if (z === false) sess.offMs += dt; else sess.lostMs += dt;
+  if (!sess.samples.length || t - sess.samples[sess.samples.length-1].t > 250) sess.samples.push({ t, z, obs: sess.obsOpen != null });
+  if (sess.state === "monitor"){
+    if (z === true || t < sess.cooldownUntil){ sess.offStart = null; sess.offBuf = []; return; }
+    sess.offStart ??= t;
+    sess.offBuf.push(pose.face ? rel() : null);
+    if (t - sess.offStart >= limitMs()) raiseNudge(t);
+  } else if (sess.state === "alert"){
+    if (z === true){
+      sess.inSince ??= t;
+      if (t - sess.inSince >= 800){
+        const ms = sess.inSince - sess.alertAt;
+        sess.recov.push(ms); logEv("recovered", { return_s: ms/1000 });
+        sess.state = "monitor"; sess.offStart = null; sess.offBuf = []; hideNudge();
+      }
+    } else sess.inSince = null;
+  }
+}
+function limitMs(){
+  const pr = prof(), buf = sess.offBuf;
+  const lost = buf.length ? buf.filter(x => x === null).length / buf.length : 0;
+  return (lost > .5 ? pr.lostThr : pr.thr) * 1000;
+}
+function raiseNudge(t){
+  sess.state = "alert"; sess.alertAt = t; sess.inSince = null;
+  sess.alerts.push({ at:t, buf: sess.offBuf.slice() });
+  logEv("alert", { off_s: (t - sess.offStart)/1000 });
+  $("nudge").hidden = false; $("svBtns").hidden = false;
+  $("student").classList.add("alerting");
+  $("svMsg").textContent = "Quick check: back to your task?"; $("svSub").textContent = "Tap “I was focused” if this nudge was wrong. The system learns from it.";
+  try{ navigator.vibrate && navigator.vibrate([180, 90, 180]); }catch{}
+}
+function hideNudge(){
+  $("nudge").hidden = true; $("svBtns").hidden = true; $("student").classList.remove("alerting");
+  $("svMsg").textContent = "You’re on track."; $("svSub").textContent = "Keep going. Only you can see this screen.";
+}
+function studentBack(){ if (sess?.state === "alert"){ logEv("alert_ack"); $("svMsg").textContent = "Welcome back."; } }
+function studentFalse(){
+  if (sess?.state !== "alert") return;
+  sess.falseCount++;
+  const a = sess.alerts[sess.alerts.length-1]; a.falseReported = true;
+  logEv("alert_false_reported");
+  if (sess.adapt) adapt(a.buf);
+  sess.state = "monitor"; sess.offStart = null; sess.offBuf = []; sess.cooldownUntil = now() + 3000; hideNudge();
+}
+const median = arr => { const s = [...arr].sort((a,b)=>a-b); return s.length ? s[Math.floor(s.length/2)] : 0; };
+function adapt(buf){
+  const pr = prof(), before = JSON.parse(JSON.stringify({ tol:pr.tol, thr:pr.thr, lostThr:pr.lostThr }));
+  const seen = buf.filter(Boolean);
+  if (seen.length && seen.length >= buf.length/2){
+    // Gradual: each correction widens a side by at most STEP degrees, never beyond CAP.
+    const dp = median(seen.map(s => s.dp)), dy = median(seen.map(s => s.dy)), M = 3, STEP = 8, CAP = 35;
+    const grow = (cur, need) => need > cur ? Math.min(CAP, cur + STEP, need + M) : cur;
+    pr.tol.up = grow(pr.tol.up, dp); pr.tol.down = grow(pr.tol.down, -dp);
+    pr.tol.right = grow(pr.tol.right, dy); pr.tol.left = grow(pr.tol.left, -dy);
+  } else pr.lostThr = Math.min(20, pr.lostThr + 3);
+  pr.thr = Math.min(12, pr.thr + 1);
+  saveProfiles(); $("thrIn").value = pr.thr;
+  ghost = { tol: before.tol, until: now() + 15000 };
+  logEv("adapted", { before, after:{ tol:{...pr.tol}, thr:pr.thr, lostThr:pr.lostThr } });
+}
+
+// ---------- calibration ----------
+$("btnCal").onclick = () => { calib = { start: now(), until: now() + 3000, samples: [] }; };
+function stepCalib(t){
+  if (!calib) return;
+  if (pose.face) calib.samples.push({ p:pose.p, y:pose.y });
+  if (t < calib.until) return;
+  if (calib.samples.length < 5){ calib = null; $("calInfo").textContent = "The face was not visible during calibration. Check the camera angle and try again."; return; }
+  const pr = prof();
+  pr.base = { p: median(calib.samples.map(s => s.p)), y: median(calib.samples.map(s => s.y)) };
+  saveProfiles(); calib = null; showSetup();
+  logEv("calibrated", { base_pitch: pr.base.p, base_yaw: pr.base.y });
+}
+function flashCal(){ const el = $("s2"); el.animate?.([{background:"color-mix(in srgb,var(--nudge) 18%,transparent)"},{background:"transparent"}], {duration:900}); }
+function showSetup(){
+  const pr = prof();
+  $("thrIn").value = pr.thr;
+  $("calInfo").textContent = pr.base
+    ? `Done for ${pid()} · ${task}. Recalibrate if the camera or seat moves.`
+    : `Ask ${pid()} to look at their ${task === "reading" ? "book or worksheet" : "teacher or board"} as usual, then press Calibrate.`;
+  steps();
+}
+function steps(){
+  const cal = !!prof().base;
+  $("s1").className = "step done";
+  $("s2").className = "step " + (cal ? "done" : "current");
+  $("s3").className = "step " + (cal ? "current" : "");
+}
+
+// ---------- controls ----------
+function setTask(t){ task = t; $("tReading").setAttribute("aria-pressed", t==="reading"); $("tListening").setAttribute("aria-pressed", t==="listening"); ghost = null; shown = null; showSetup(); }
+$("tReading").onclick = () => setTask("reading");
+$("tListening").onclick = () => setTask("listening");
+$("pid").onchange = () => { shown = null; ghost = null; showSetup(); };
+$("thrIn").onchange = () => { const v = parseFloat($("thrIn").value); if (v >= 1 && v <= 30){ prof().thr = v; saveProfiles(); } $("thrIn").value = prof().thr; };
+$("btnBack").onclick = studentBack; $("svBack").onclick = studentBack;
+$("btnFalse").onclick = studentFalse; $("svFalse").onclick = studentFalse;
+$("btnStudent").onclick = () => { $("student").hidden = false; };
+$("svExit").onclick = () => { $("student").hidden = true; };
+const setObs = on => $("btnObs").setAttribute("aria-pressed", on);
+function toggleObs(){
+  if (!sess) return;
+  const t = now();
+  if (sess.obsOpen == null){ sess.obsOpen = t; setObs(true); logEv("observer_offtask_start"); }
+  else { sess.obs.push([sess.obsOpen, t]); sess.obsOpen = null; setObs(false); logEv("observer_offtask_end"); }
+}
+$("btnObs").onclick = toggleObs;
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" || e.repeat) return;
+  const k = e.key.toLowerCase();
+  if (k === "o") toggleObs(); else if (k === "b") studentBack(); else if (k === "f") studentFalse();
+});
+function tab(which){
+  $("tabS").setAttribute("aria-selected", which === "s"); $("tabE").setAttribute("aria-selected", which === "e");
+  $("paneS").hidden = which !== "s"; $("paneE").hidden = which !== "e";
+}
+$("tabS").onclick = () => tab("s"); $("tabE").onclick = () => tab("e");
+
+// simulation
+const map = $("map"); let dragging = false;
+function simFrom(e){
+  const r = map.getBoundingClientRect(), b = prof().base || {p:0,y:0}, g = geom(r.width, r.height);
+  simPose = { y: b.y + (e.clientX - r.left - g.cx) / g.s, p: b.p - (e.clientY - r.top - g.cy) / g.s };
+}
+map.addEventListener("pointerdown", e => { if (camState !== "on"){ dragging = true; map.setPointerCapture(e.pointerId); simFrom(e); } });
+map.addEventListener("pointermove", e => { if (dragging) simFrom(e); });
+map.addEventListener("pointerup", () => dragging = false);
+
+// ---------- export ----------
+function csv(rows){
+  if (!rows.length) return "";
+  const keys = [...new Set(rows.flatMap(r => Object.keys(r)))];
+  const esc = v => { const s = v == null ? "" : (typeof v === "object" ? JSON.stringify(v) : String(v)); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+  return [keys.join(","), ...rows.map(r => keys.map(k => esc(r[k])).join(","))].join("\n");
+}
+function download(name, text){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type:"text/csv" })); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+$("btnCsv").onclick = () => download("focusback_sessions.csv", csv(sessions));
+$("btnEv").onclick = () => download("focusback_events.csv", csv(events));
+let clearArmed = false;
+$("btnClear").onclick = () => {
+  if (!clearArmed){ clearArmed = true; $("clearConfirm").hidden = false; setTimeout(() => { clearArmed = false; $("clearConfirm").hidden = true; }, 4000); return; }
+  sessions = []; events = []; profiles = {};
+  store.set("sessions", sessions); store.set("events", events); saveProfiles();
+  $("log").textContent = ""; $("emptyE").hidden = false; $("clearConfirm").hidden = true; clearArmed = false;
+  ghost = null; shown = null; renderTable(); showSetup();
+};
+function renderTable(){
+  const tb = $("sessTbl").querySelector("tbody"); tb.textContent = "";
+  $("emptyS").hidden = sessions.length > 0; $("sessTbl").hidden = !sessions.length;
+  [...sessions].reverse().forEach(s => {
+    const tr = document.createElement("tr");
+    const cells = [[s.n,1],[s.pid],[s.task],[s.adapt],[s.minutes,1],[s.inZonePct+"%",1],[s.alerts,1],[s.falseAlerts,1],[s.falsePct+"%",1],[s.meanReturnS ?? "–",1],[s.tp ?? "–",1],[s.fp ?? "–",1],[s.fn ?? "–",1]];
+    cells.forEach(([v,n]) => { const td = document.createElement("td"); td.textContent = v; if (n) td.className = "n"; tr.appendChild(td); });
+    tb.appendChild(tr);
+  });
+}
+
+// ---------- drawing ----------
+const tok = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function fit(c){
+  const r = c.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+  const w = Math.round(r.width * d), h = Math.round(r.height * d);
+  if (c.width !== w || c.height !== h){ c.width = w; c.height = h; }
+  const g = c.getContext("2d"); g.setTransform(d,0,0,d,0,0); return [g, r.width, r.height];
+}
+function geom(W, H){ const s = Math.min(W / 110, (H - 20) / 80); return { s, cx: W/2, cy: H/2 }; }
+function rr(g, x, y, w, h, r){ g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, r) : g.rect(x, y, w, h); }
+function zoneRect(G, t){ return [G.cx - t.left*G.s, G.cy - t.up*G.s, (t.left + t.right)*G.s, (t.up + t.down)*G.s]; }
+
+function drawMap(){
+  const [g, W, H] = fit(map), G = geom(W, H), pr = prof();
+  const zone = tok("--zone"), ink = tok("--ink"), muted = tok("--muted"), line = tok("--line"), nudge = tok("--nudge");
+  g.clearRect(0,0,W,H);
+  // concentric degree rings
+  g.lineWidth = 1; g.strokeStyle = line;
+  [15,30,45].forEach(d => { g.beginPath(); g.ellipse(G.cx, G.cy, d*G.s, d*G.s, 0, 0, Math.PI*2); g.stroke(); });
+  g.beginPath(); g.moveTo(G.cx - 55*G.s, G.cy); g.lineTo(G.cx + 55*G.s, G.cy); g.moveTo(G.cx, G.cy - 40*G.s); g.lineTo(G.cx, G.cy + 40*G.s); g.stroke();
+  g.fillStyle = muted; g.font = "11px " + tok("--mono"); g.textAlign = "center";
+  [15,30].forEach(d => g.fillText(d + "°", G.cx + d*G.s, G.cy - 6));
+  g.font = "500 12px " + tok("--sans");
+  g.fillText("up", G.cx, G.cy - 40*G.s + 14); g.fillText("down", G.cx, G.cy + 40*G.s - 4);
+  g.textAlign = "left"; g.fillText("left", G.cx - 55*G.s + 4, G.cy + 16);
+  g.textAlign = "right"; g.fillText("right", G.cx + 55*G.s - 4, G.cy + 16);
+
+  // animated zone
+  const target = pr.tol;
+  shown ??= { ...target };
+  for (const k in target) shown[k] += (target[k] - shown[k]) * .08;
+  if (ghost && now() < ghost.until){
+    g.setLineDash([6,5]); g.strokeStyle = muted; g.lineWidth = 1.5;
+    rr(g, ...zoneRect(G, ghost.tol), 18); g.stroke(); g.setLineDash([]);
+  }
+  const [zx, zy, zw, zh] = zoneRect(G, shown);
+  g.globalAlpha = pr.base ? .18 : .07; g.fillStyle = zone; rr(g, zx, zy, zw, zh, 18); g.fill();
+  g.globalAlpha = pr.base ? 1 : .35; g.strokeStyle = zone; g.lineWidth = 2; rr(g, zx, zy, zw, zh, 18); g.stroke(); g.globalAlpha = 1;
+  g.fillStyle = zone; g.font = "600 12px " + tok("--sans"); g.textAlign = "left";
+  g.fillText((task === "reading" ? "Reading" : "Listening") + " zone · " + pid(), zx + 10, zy + 18);
+
+  // calibration progress
+  if (calib){
+    const p = Math.min(1, (now() - calib.start) / 3000);
+    g.strokeStyle = ink; g.lineWidth = 4; g.lineCap = "round";
+    g.beginPath(); g.arc(G.cx, G.cy, 34, -Math.PI/2, -Math.PI/2 + p*Math.PI*2); g.stroke(); g.lineCap = "butt";
+  }
+
+  // head direction
+  if (pose.face){
+    const r = rel(), clamp = (v, m) => Math.max(-m, Math.min(m, v));
+    const px = G.cx + clamp(r.dy, 54)*G.s, py = G.cy - clamp(r.dp, 39)*G.s;
+    trail.push([px, py]); if (trail.length > 30) trail.shift();
+    g.strokeStyle = ink; g.lineWidth = 2; g.globalAlpha = .18; g.beginPath();
+    trail.forEach(([x,y], i) => i ? g.lineTo(x,y) : g.moveTo(x,y)); g.stroke(); g.globalAlpha = 1;
+    const out = inZone() === false;
+    g.fillStyle = out ? nudge : ink;
+    g.globalAlpha = .18; g.beginPath(); g.arc(px, py, 16, 0, Math.PI*2); g.fill(); g.globalAlpha = 1;
+    g.beginPath(); g.arc(px, py, 7, 0, Math.PI*2); g.fill();
+  } else {
+    trail = [];
+    g.fillStyle = muted; g.font = "500 14px " + tok("--sans"); g.textAlign = "center";
+    g.fillText("Face not visible", G.cx, G.cy + 4);
+  }
+}
+
+function drawTimeline(){
+  const [g, W, H] = fit($("tl"));
+  g.clearRect(0,0,W,H);
+  const muted = tok("--muted");
+  if (!sess || !sess.samples.length){
+    g.fillStyle = tok("--line"); rr(g, 0, 16, W, 22, 6); g.fill();
+    g.fillStyle = muted; g.font = "12px " + tok("--sans"); g.textAlign = "left"; g.fillText("Timeline starts when a session runs", 10, 31); return;
+  }
+  const t0 = sess.start, span = Math.max(60000, now() - t0), x = t => (t - t0) / span * W;
+  const C = { true: tok("--zone"), false: tok("--nudge"), null: tok("--lost") };
+  g.save(); rr(g, 0, 16, W, 22, 6); g.clip();
+  sess.samples.forEach((s, i) => { const n = sess.samples[i+1]?.t ?? now(); g.fillStyle = C[s.z]; g.fillRect(x(s.t), 16, Math.max(1, x(n) - x(s.t)) + .5, 22); });
+  g.restore();
+  g.fillStyle = tok("--observer");
+  sess.samples.forEach((s, i) => { if (!s.obs) return; const n = sess.samples[i+1]?.t ?? now(); g.fillRect(x(s.t), 42, Math.max(1, x(n) - x(s.t)) + .5, 5); });
+  g.fillStyle = tok("--ink");
+  sess.alerts.forEach(a => { const ax = x(a.at); g.beginPath(); g.moveTo(ax-5,3); g.lineTo(ax+5,3); g.lineTo(ax,12); g.fill(); });
+  g.fillStyle = muted; g.font = "11px " + tok("--mono"); g.textAlign = "right"; g.fillText(fmt(span), W, 12);
+}
+
+const fmt = ms => { const s = Math.floor(ms/1000); return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); };
+function updateUI(){
+  const z = inZone(), pr = prof();
+  let say, sub, meter = null;
+  if (calib){ say = "Calibrating…"; sub = `Keep looking at the ${task === "reading" ? "book or worksheet" : "teacher or board"}.`; }
+  else if (!pr.base){ say = "Calibrate to set this student’s zone"; sub = "The green area is where this student’s head can point while still on task."; }
+  else if (!sess){ say = z === true ? "Ready · on task" : z === false ? "Ready · looking away" : "Ready · face not visible"; sub = "Press Start in step 3 to begin measuring."; }
+  else if (sess.state === "alert"){ say = "Nudge sent"; sub = "Waiting for the student to return to the task."; }
+  else if (z === true){ say = "On task"; sub = `${task === "reading" ? "Reading" : "Listening"} · nothing to do.`; }
+  else {
+    const el = (now() - (sess.offStart ?? now())) / 1000, lim = limitMs() / 1000;
+    say = z === false ? "Looking away" : "Face not visible";
+    sub = "A private nudge follows if this continues."; meter = [el, lim];
+  }
+  $("say").firstChild.textContent = say; $("saySub").textContent = sub;
+  $("meter").hidden = !meter;
+  if (meter){ $("meterBar").style.width = Math.min(100, 100*meter[0]/meter[1]) + "%"; $("meterTxt").textContent = `${meter[0].toFixed(1)} of ${meter[1]}s`; }
+  if (sess){
+    const total = sess.onMs + sess.offMs + sess.lostMs;
+    $("mDur").textContent = fmt(now() - sess.start);
+    $("mOn").textContent = total ? Math.round(100*sess.onMs/total) + "%" : "–";
+    $("mAl").textContent = sess.alerts.length; $("mFa").textContent = sess.falseCount;
+    $("mRec").textContent = sess.recov.length ? (sess.recov.reduce((a,b)=>a+b,0)/sess.recov.length/1000).toFixed(1) + "s" : "–";
+    const obs = sess.obs.concat(sess.obsOpen != null ? [[sess.obsOpen, now()]] : []);
+    $("mPr").textContent = obs.length && sess.alerts.length
+      ? Math.round(100 * sess.alerts.filter(a => obs.some(([s,e]) => a.at >= s - 1000 && a.at <= e + pr.thr*1000)).length / sess.alerts.length) + "%" : "–";
+  }
+}
+
+function loop(t){ sense(t); stepCalib(now()); step(now()); drawMap(); drawTimeline(); updateUI(); requestAnimationFrame(loop); }
+
+setModelPill(); setCamNote(); showSetup(); renderTable();
+[...events].slice(-80).reverse().forEach(e => renderEv(e, false));
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
