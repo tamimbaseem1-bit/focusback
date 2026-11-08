@@ -190,146 +190,170 @@ tr:last-child td{border-bottom:0}
 #svTask{font:600 clamp(26px,4.5vw,40px)/1.4 "IBM Plex Sans Arabic",var(--sans);margin:0;direction:rtl;max-width:22ch}
 #svTaskBar{width:min(320px,70vw);height:6px;border-radius:999px;background:var(--line);overflow:hidden}
 #svTaskBar i{display:block;height:100%;width:0;background:var(--ink)}
+
+/* v3: simplified console */
+.nav{display:inline-flex;background:var(--sunk);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px;margin-right:auto}
+.nav button{border:0;background:transparent;border-radius:9px;padding:8px 16px;font-weight:600;color:var(--muted);cursor:pointer}
+.nav button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgb(0 0 0 / .12)}
+.brand{margin-right:12px}
+.rail{padding:20px;gap:22px}
+.plan{display:flex;flex-direction:column;gap:12px}
+.planhead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.planhead h2{margin:0;font:600 16px/1.2 var(--sans)}
+.who{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);font-weight:500}
+.who input{width:70px;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font:500 13px var(--mono)}
+.rounds{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.round{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:12px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);cursor:pointer}
+.round b{font-size:14px}
+.round span{font-size:12px;color:var(--muted)}
+.round i{position:absolute;top:10px;right:10px;font:600 12px var(--mono);font-style:normal;color:var(--zone)}
+.round[aria-pressed=true]{border-color:var(--ink);background:var(--sunk)}
+.round:disabled{cursor:not-allowed;opacity:.55}
+.round[aria-pressed=true]:disabled{opacity:1}
+.action{display:flex;flex-direction:column;gap:12px}
+.hint{margin:0;font-size:14px;color:var(--muted);min-height:2.6em}
+.btn.big{padding:16px;font-size:17px;border-radius:12px}
+.btn.main.stop{background:var(--c1);border-color:var(--c1);color:#fff}
+.links{display:flex;justify-content:space-between;gap:10px}
+.link{border:0;background:none;padding:0;font-size:13px;font-weight:600;color:var(--zone);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.link:disabled{color:var(--muted);cursor:not-allowed}
+.settings{border-top:1px solid var(--line);padding-top:14px}
+.settings summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--muted)}
+.setgrid{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.live .tl{padding-bottom:6px}
+.resview{display:flex;flex-direction:column;gap:20px;padding:0 max(16px,3vw) 40px}
+.cardhead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--line)}
+.cardhead h2{margin:0;font:600 18px/1.3 var(--sans)}
+.cardhead .note{margin-top:2px}
+.evlog{border-top:1px solid var(--line);padding:12px 18px}
+.evlog summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--muted)}
 </style>
 </head>
 <body>
 <div class="stripe" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 
 <header class="top">
-  <div class="brand"><h1>FocusBack</h1><span>Adaptive attention support · research prototype</span></div>
+  <div class="brand"><h1>FocusBack</h1></div>
+  <nav class="nav" aria-label="Views">
+    <button id="vRun" aria-pressed="true">Run a test</button>
+    <button id="vRes" aria-pressed="false">Results</button>
+  </nav>
   <span class="pill" id="modelPill"><i></i><span id="modelTxt">Loading face model…</span></span>
-  <button class="btn" id="btnStudent">Open student screen</button>
   <div class="pixels" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 </header>
 
-<div class="grid">
-  <aside class="card rail" aria-label="Session steps">
-    <section class="step current" id="s1">
-      <h2><b>1</b>Student and task</h2>
-      <div class="fields">
-        <label class="field">Student code<input id="pid" value="P01" autocomplete="off" maxlength="8"></label>
-        <label class="field">Nudge after (s)<input id="thrIn" inputmode="decimal" maxlength="4"></label>
+<div class="grid" id="viewRun">
+  <aside class="card rail">
+    <div class="plan">
+      <div class="planhead">
+        <h2>Test plan</h2>
+        <label class="who">Volunteer <input id="pid" value="P01" autocomplete="off" maxlength="8" aria-label="Volunteer code"></label>
       </div>
-      <div class="seg" role="group" aria-label="Current task">
-        <button id="tReading" aria-pressed="true">Reading</button>
-        <button id="tListening" aria-pressed="false">Listening</button>
+      <div class="rounds" id="rounds">
+        <button class="round" data-task="reading" data-adapt="0"><b>Reading</b><span>Round 1 · no learning</span><i></i></button>
+        <button class="round" data-task="reading" data-adapt="1"><b>Reading</b><span>Round 2 · with learning</span><i></i></button>
+        <button class="round" data-task="listening" data-adapt="0"><b>Listening</b><span>Round 1 · no learning</span><i></i></button>
+        <button class="round" data-task="listening" data-adapt="1"><b>Listening</b><span>Round 2 · with learning</span><i></i></button>
       </div>
-      <div class="seg" role="group" aria-label="Session type">
-        <button id="mScript" aria-pressed="true">Scripted test</button>
-        <button id="mFree" aria-pressed="false">Free session</button>
-      </div>
-      <p class="note" id="modeNote"></p>
-      <div class="toggle">
-        <span>Learn from corrections<small>Off = baseline round · On = adaptive round</small></span>
-        <label class="switch"><input type="checkbox" id="adaptOn" aria-label="Learn from corrections"><span></span></label>
-      </div>
-      <div class="toggle">
-        <span>Speak instructions<small>Arabic voice, if this device has one</small></span>
-        <label class="switch"><input type="checkbox" id="speakOn" checked aria-label="Speak instructions"><span></span></label>
-      </div>
-    </section>
+    </div>
 
-    <section class="step" id="s2">
-      <h2><b>2</b>Calibrate</h2>
-      <p id="calInfo"></p>
-      <button class="btn wide" id="btnCal">Calibrate · 20 seconds</button>
-    </section>
-
-    <section class="step" id="s3">
-      <h2><b>3</b>Run the session</h2>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <button class="btn main" id="btnStart">Start</button>
-        <button class="btn" id="btnStop" disabled>Stop</button>
-      </div>
+    <div class="action">
+      <p class="hint" id="hint"></p>
+      <button class="btn main big" id="btnGo">Calibrate · 20 s</button>
+      <button class="btn obs wide" id="btnObs" aria-pressed="false" hidden>Observer: really off-task <kbd>O</kbd></button>
       <div class="script" id="scriptBox" hidden>
         <div class="row"><span id="scrStep">Step 1 of 12</span><span id="scrKind"></span></div>
         <div class="now" id="scrNow"></div>
         <div class="bar"><i id="scrBar"></i></div>
       </div>
-      <button class="btn wide obs" id="btnObs" aria-pressed="false" disabled>Observer: really off-task <kbd>O</kbd></button>
-      <p class="note" id="runNote"></p>
-    </section>
+      <div class="links">
+        <button class="link" id="btnRecal">Recalibrate</button>
+        <button class="link" id="btnStudent">Show student screen</button>
+      </div>
+    </div>
+
+    <details class="settings">
+      <summary>Settings</summary>
+      <div class="setgrid">
+        <div class="seg" role="group" aria-label="Session type">
+          <button id="mScript" aria-pressed="true">Scripted test</button>
+          <button id="mFree" aria-pressed="false">Free lesson</button>
+        </div>
+        <p class="note" id="modeNote"></p>
+        <label class="field">Nudge after (seconds)<input id="thrIn" inputmode="decimal" maxlength="4"></label>
+        <div class="toggle">
+          <span>Speak instructions<small>Arabic voice, if this device has one</small></span>
+          <label class="switch"><input type="checkbox" id="speakOn" checked aria-label="Speak instructions"><span></span></label>
+        </div>
+        <button class="btn" id="btnClear">Clear all data</button>
+        <span class="confirm" id="clearConfirm" hidden>Press again to delete every session</span>
+      </div>
+    </details>
   </aside>
 
   <main class="stage">
     <section class="card mapcard" aria-label="Attention zone">
       <div class="maphead">
-        <p class="say" id="say">Calibrate to set this student’s zone<small id="saySub">The blue area is where this student’s head can point while still on task.</small></p>
+        <p class="say" id="say">Calibrate first<small id="saySub"></small></p>
         <div class="meter" id="meter" hidden><div class="bar"><i id="meterBar"></i></div><span id="meterTxt"></span></div>
       </div>
-      <canvas id="map" aria-label="Head direction relative to the student’s calibrated zone"></canvas>
+      <canvas id="map" aria-label="Head direction relative to the volunteer’s zone"></canvas>
       <div class="inset">
         <video id="vid" playsinline muted></video>
         <div class="camnote" id="camNote"><span id="camTxt">Camera is off</span><button class="btn" id="btnCam">Start camera</button></div>
       </div>
       <div class="legend">
         <span><i style="background:color-mix(in srgb,var(--zone) 30%,transparent);border:1.5px solid var(--zone)"></i>On-task zone</span>
-        <span><i style="border:1.5px dashed var(--muted)"></i>Zone before last correction</span>
-        <span><i style="background:var(--ink);border-radius:50%"></i>Head direction now</span>
-        <span id="simHint">No camera? Drag on the map to simulate.</span>
+        <span><i style="background:var(--ink);border-radius:50%"></i>Head direction</span>
+        <span id="simHint">No camera? Drag on the map to try it.</span>
       </div>
     </section>
 
     <section class="teacher" id="teacher" hidden aria-live="assertive">
-      <div><h3>Teacher support needed</h3><p id="teacherTxt">Two private nudges, and the student has not returned to the task.</p></div>
+      <div><h3>Teacher support needed</h3><p id="teacherTxt"></p></div>
       <button class="btn" id="btnTeacherOk">Dismiss</button>
     </section>
 
     <section class="nudge" id="nudge" hidden aria-live="polite">
-      <div><h3 id="nudgeTitle">Private nudge sent</h3><p>Waiting for the student to return. Recovery time is measured automatically.</p></div>
+      <div><h3 id="nudgeTitle">Private nudge sent</h3><p>Return time is measured automatically.</p></div>
       <div class="acts">
         <button class="btn main" id="btnBack">I’m back <kbd>B</kbd></button>
         <button class="btn" id="btnFalse">I was focused <kbd>F</kbd></button>
       </div>
     </section>
 
-    <section class="card">
+    <section class="card live">
       <div class="tl"><canvas id="tl" aria-label="Session timeline"></canvas></div>
-      <div class="legend">
-        <span><i style="background:var(--zone)"></i>On task</span><span><i style="background:var(--nudge)"></i>Looking away</span>
-        <span><i style="background:var(--lost)"></i>Face not visible</span><span><i style="background:var(--observer)"></i>Truly off-task (script or observer)</span><span>▼ nudge</span>
-      </div>
-      <div class="metrics" style="border-top:1px solid var(--line)">
-        <div class="metric"><b id="mDur">0:00</b><span>Session time</span></div>
-        <div class="metric"><b id="mOn">–</b><span>Time on task</span></div>
+      <div class="metrics">
         <div class="metric"><b id="mAl">0</b><span>Nudges</span></div>
-        <div class="metric"><b id="mFa">0</b><span>Marked “I was focused”</span></div>
-        <div class="metric"><b id="mDet">–</b><span>Real off-task detected</span></div>
-        <div class="metric"><b id="mFalse">–</b><span>False nudge rate</span></div>
+        <div class="metric"><b id="mFalse">–</b><span>Wrong nudges</span></div>
+        <div class="metric"><b id="mDet">–</b><span>Off-task caught</span></div>
         <div class="metric"><b id="mRec">–</b><span>Avg. return time</span></div>
-        <div class="metric"><b id="mStay">–</b><span>Avg. stay after return</span></div>
       </div>
-    </section>
-
-    <section class="card results">
-      <div class="head">
-        <div class="tabs" role="tablist">
-          <button role="tab" id="tabS" aria-selected="true">Sessions</button>
-          <button role="tab" id="tabC" aria-selected="false">Charts</button>
-          <button role="tab" id="tabE" aria-selected="false">Event log</button>
-        </div>
-        <span class="confirm" id="clearConfirm" hidden>Press again to delete everything</span>
-        <button class="btn" id="btnCsv">Export sessions</button>
-        <button class="btn" id="btnEv">Export events</button>
-        <button class="btn" id="btnClear">Clear all data</button>
-      </div>
-      <div id="paneS">
-        <div class="tablewrap"><table id="sessTbl"><thead><tr>
-          <th>#</th><th>Student</th><th>Task</th><th>Type</th><th>Learning</th><th>Min</th><th>Nudges</th><th>Detected</th><th>False rate</th><th>“Focused”</th><th>Return (s)</th><th>Stay (s)</th><th>Teacher</th></tr></thead><tbody></tbody></table></div>
-        <div class="empty" id="emptyS">Finished sessions appear here, ready to export for the poster.</div>
-      </div>
-      <div id="paneC" hidden>
-        <div id="chartWrap"><canvas id="charts" width="1500" height="560" aria-label="Results charts"></canvas></div>
-        <div class="head" style="border-top:1px solid var(--line);border-bottom:0">
-          <p class="note" style="margin-right:auto">Built from sessions with ground truth (scripted tests, or free sessions with an observer). Baseline = learning off, Adaptive = learning on.</p>
-          <button class="btn main" id="btnPng">Download charts (PNG)</button>
-        </div>
-      </div>
-      <div id="paneE" hidden><div class="log" id="log"></div><div class="empty" id="emptyE">Calibrations, nudges, returns and corrections are listed here as they happen.</div></div>
     </section>
   </main>
 </div>
 
+<div class="resview" id="viewRes" hidden>
+  <section class="card">
+    <div class="cardhead">
+      <div><h2>Poster charts</h2><p class="note">Round 1 (no learning) compared with Round 2 (with learning), for each task.</p></div>
+      <button class="btn main" id="btnPng">Download charts</button>
+    </div>
+    <div id="chartWrap"><canvas id="charts" width="1500" height="560" aria-label="Results charts"></canvas></div>
+  </section>
+
+  <section class="card results">
+    <div class="cardhead">
+      <div><h2>Sessions</h2><p class="note">Every finished test. Download the data to keep a backup or build tables.</p></div>
+      <button class="btn" id="btnCsv">Download data (CSV)</button>
+    </div>
+    <div class="tablewrap"><table id="sessTbl"><thead><tr>
+      <th>#</th><th>Volunteer</th><th>Task</th><th>Round</th><th>Type</th><th>Min</th><th>Nudges</th><th>Off-task caught</th><th>Wrong nudges</th><th>Return (s)</th><th>Stay (s)</th><th>Teacher</th></tr></thead><tbody></tbody></table></div>
+    <div class="empty" id="emptyS">No finished tests yet. Run one from “Run a test”.</div>
+    <details class="evlog"><summary>Event log</summary><div class="log" id="log"></div><div class="empty" id="emptyE">Nothing logged yet.</div></details>
+  </section>
+</div>
 <div id="student" hidden>
   <div class="halo"></div>
   <div class="stripe" aria-hidden="true" style="position:absolute;top:0;left:0;right:0"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
@@ -380,7 +404,7 @@ const SCRIPTS = {
 const ROUNDS = 3;
 
 // ---------- state ----------
-let task = "reading", mode = "script";
+let task = "reading", mode = "script", adaptRound = false;
 let profiles = store.get("profiles", {});
 let sessions = store.get("sessions", []);
 let events = store.get("events", []);
@@ -525,11 +549,11 @@ function renderEv(e, prepend){
 }
 
 // ---------- session ----------
-$("btnStart").onclick = () => {
+function startSession(){
   document.activeElement?.blur();
   const pr = prof();
-  if (!pr.base){ flashCal(); return; }
-  sess = { n: sessions.length + 1, start: now(), pid: pid(), task, mode, adapt: $("adaptOn").checked,
+  if (!pr.base) return;
+  sess = { n: sessions.length + 1, start: now(), pid: pid(), task, mode, adapt: adaptRound,
     state:"monitor", offStart:null, offBuf:[], alertAt:null, inSince:null, cooldownUntil:0,
     nudgesInEpisode:0, teacherSent:false, repeats:0, teacherNotices:0,
     alerts:[], falseCount:0, recov:[], stays:[], stayFrom:null,
@@ -537,14 +561,17 @@ $("btnStart").onclick = () => {
   logEv("session_start", { mode, adapt: sess.adapt, thr: pr.thr });
   if (mode === "script") startScript();
   lockSetup(true);
-};
-$("btnStop").onclick = () => stopSession(false);
+  if (mode === "script") $("student").hidden = false;
+}
+$("btnGo").onclick = () => { if (calib) return; if (sess) stopSession(false); else if (!prof().base) calibrate(); else startSession(); };
+$("btnRecal").onclick = () => { if (!sess && !calib) calibrate(); };
 function lockSetup(on){
-  ["btnStart","btnCal","tReading","tListening","mScript","mFree","pid","thrIn","adaptOn"].forEach(id => $(id).disabled = on);
-  $("btnStop").disabled = !on; $("btnObs").disabled = !on || mode === "script";
+  ["mScript","mFree","pid","thrIn","btnRecal"].forEach(id => $(id).disabled = on);
+  document.querySelectorAll(".round").forEach(r => r.disabled = on);
+  $("btnObs").hidden = !(on && mode === "free");
   $("scriptBox").hidden = !(on && mode === "script");
   $("svTask").hidden = $("svTaskBar").hidden = !(on && mode === "script");
-  steps();
+  refreshAction();
 }
 function inEpisode(a){ return sess.obs.some(([s,e]) => a.at >= s - 1000 && a.at <= e + GRACE_MS); }
 function scoreNow(extraObs = []){
@@ -572,7 +599,12 @@ function stopSession(finished){
     meanStayS: mean(sess.stays), observed: episodes > 0 };
   sessions.push(row); store.set("sessions", sessions);
   logEv("session_end", { alerts: n, false: sess.falseCount });
-  sess = null; hideNudge(); $("teacher").hidden = true; lockSetup(false); renderTable(); drawCharts();
+  const wasScript = sess.mode === "script";
+  sess = null; hideNudge(); $("teacher").hidden = true; lockSetup(false); renderTable(); drawCharts(); renderRounds();
+  if (wasScript && !$("student").hidden){
+    $("svMsg").textContent = finished ? "Test finished. Thank you!" : "Test stopped."; $("svSub").textContent = "";
+    setTimeout(() => { $("student").hidden = true; hideNudge(); }, 2500);
+  }
 }
 
 // ---------- scripted test ----------
@@ -709,37 +741,42 @@ function adapt(buf){
 }
 
 // ---------- calibration ----------
-$("btnCal").onclick = () => {
+function calibrate(){
   calib = { start: now(), until: now() + CAL_MS, samples: [] };
-  $("btnCal").disabled = true;
+  refreshAction();
   say(task === "reading" ? "انظر إلى كتابك كما تقرأ عادة" : "انظر إلى المتحدث كما تستمع عادة");
-};
+}
 function stepCalib(t){
   if (!calib) return;
   if (pose.face) calib.samples.push({ p:pose.p, y:pose.y });
   if (t < calib.until) return;
-  $("btnCal").disabled = false;
-  if (calib.samples.length < 20){ calib = null; $("calInfo").textContent = "The face was not visible during calibration. Check the camera angle and try again."; return; }
+  if (calib.samples.length < 20){ calib = null; refreshAction(); $("hint").textContent = "The face was not visible during calibration. Check the camera angle, then try again."; return; }
   const pr = prof();
   pr.base = { p: median(calib.samples.map(s => s.p)), y: median(calib.samples.map(s => s.y)) };
   saveProfiles(); calib = null; chime(880); showSetup();
   logEv("calibrated", { base_pitch: pr.base.p, base_yaw: pr.base.y, seconds: CAL_MS/1000 });
 }
-function flashCal(){ $("s2").animate?.([{background:"color-mix(in srgb,var(--nudge) 18%,transparent)"},{background:"transparent"}], {duration:900}); }
-function showSetup(){
-  const pr = prof();
-  $("thrIn").value = pr.thr;
-  $("calInfo").textContent = pr.base
-    ? `Done for ${pid()} · ${task}. Recalibrate if the camera or seat moves.`
-    : `Ask ${pid()} to look at their ${task === "reading" ? "book or worksheet" : "teacher or screen"} as usual for 20 seconds.`;
-  steps();
+function showSetup(){ $("thrIn").value = prof().thr; refreshAction(); renderRounds(); }
+function refreshAction(){
+  const go = $("btnGo"), cal = !!prof().base, what = task === "reading" ? "their book" : "the speaker or screen";
+  go.disabled = !!calib;
+  go.classList.toggle("stop", !!sess);
+  if (calib){ go.textContent = "Calibrating…"; $("hint").textContent = `Keep looking at ${what} as usual.`; }
+  else if (sess){ go.textContent = "Stop test"; $("hint").textContent = sess.mode === "script" ? "The volunteer follows the instructions on the student screen." : "Press O at the start and end of each real off-task moment."; }
+  else if (!cal){ go.textContent = "Calibrate · 20 s"; $("hint").textContent = `Seat ${pid()} in front of the camera, looking at ${what} as usual.`; }
+  else { go.textContent = "Start test"; $("hint").textContent = mode === "script" ? "Ready. The student screen opens when the test starts." : "Ready. Start when the lesson begins."; }
+  $("btnRecal").hidden = !cal || !!sess;
 }
-function steps(){
-  const cal = !!prof().base;
-  $("s1").className = "step done";
-  $("s2").className = "step " + (cal ? "done" : "current");
-  $("s3").className = "step " + (cal ? "current" : "");
+function renderRounds(){
+  document.querySelectorAll(".round").forEach(r => {
+    const t = r.dataset.task, a = r.dataset.adapt === "1";
+    r.setAttribute("aria-pressed", t === task && a === adaptRound);
+    const n = sessions.filter(s => s.pid === pid() && s.task === t && s.adapt === (a ? "on" : "off") && s.episodes > 0).length;
+    r.querySelector("i").textContent = n ? "✓" + (n > 1 ? " ×" + n : "") : "";
+  });
 }
+function selectRound(t, a){ task = t; adaptRound = a; ghost = null; shown = null; setMode(mode); showSetup(); }
+document.querySelectorAll(".round").forEach(r => r.onclick = () => selectRound(r.dataset.task, r.dataset.adapt === "1"));
 function setMode(m){
   mode = m;
   $("mScript").setAttribute("aria-pressed", m === "script"); $("mFree").setAttribute("aria-pressed", m === "free");
@@ -747,16 +784,10 @@ function setMode(m){
   $("modeNote").textContent = m === "script"
     ? `One volunteer follows ${ROUNDS * SCRIPTS[task].length} timed instructions (about ${Math.round(secs/60*10)/10} min). The correct answer is known in advance, so accuracy is scored automatically.`
     : "A normal lesson. An observer presses O at the start and end of each real off-task moment.";
-  $("runNote").textContent = m === "script"
-    ? "The volunteer taps “I was focused” only if nudged while following an on-task instruction."
-    : "The observer presses O when the student truly stops working, and again when they return.";
-  $("btnObs").hidden = m === "script";
+  refreshAction();
 }
 
 // ---------- controls ----------
-function setTask(t){ task = t; $("tReading").setAttribute("aria-pressed", t==="reading"); $("tListening").setAttribute("aria-pressed", t==="listening"); ghost = null; shown = null; setMode(mode); showSetup(); }
-$("tReading").onclick = () => setTask("reading");
-$("tListening").onclick = () => setTask("listening");
 $("mScript").onclick = () => setMode("script");
 $("mFree").onclick = () => setMode("free");
 $("pid").onchange = () => { shown = null; ghost = null; showSetup(); };
@@ -779,11 +810,12 @@ document.addEventListener("keydown", e => {
   const k = e.key.toLowerCase();
   if (k === "o") toggleObs(); else if (k === "b") studentBack(); else if (k === "f") studentFalse();
 });
-function tab(which){
-  [["s","tabS","paneS"],["c","tabC","paneC"],["e","tabE","paneE"]].forEach(([w,t,p]) => { $(t).setAttribute("aria-selected", w === which); $(p).hidden = w !== which; });
-  if (which === "c") drawCharts();
+function view(which){
+  $("vRun").setAttribute("aria-pressed", which === "run"); $("vRes").setAttribute("aria-pressed", which === "res");
+  $("viewRun").hidden = which !== "run"; $("viewRes").hidden = which !== "res";
+  if (which === "res"){ renderTable(); drawCharts(); }
 }
-$("tabS").onclick = () => tab("s"); $("tabC").onclick = () => tab("c"); $("tabE").onclick = () => tab("e");
+$("vRun").onclick = () => view("run"); $("vRes").onclick = () => view("res");
 
 // simulation
 const map = $("map"); let dragging = false;
@@ -807,8 +839,10 @@ function download(name, blob){
   a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
 }
-$("btnCsv").onclick = () => download("focusback_sessions.csv", new Blob([csv(sessions)], { type:"text/csv" }));
-$("btnEv").onclick = () => download("focusback_events.csv", new Blob([csv(events)], { type:"text/csv" }));
+$("btnCsv").onclick = () => {
+  download("focusback_sessions.csv", new Blob([csv(sessions)], { type:"text/csv" }));
+  setTimeout(() => download("focusback_events.csv", new Blob([csv(events)], { type:"text/csv" })), 600);
+};
 $("btnPng").onclick = () => { drawCharts(true); $("charts").toBlob(b => { if (b) download("focusback_charts.png", b); drawCharts(); }, "image/png"); };
 let clearArmed = false;
 $("btnClear").onclick = () => {
@@ -825,7 +859,7 @@ function renderTable(){
   [...sessions].reverse().forEach(s => {
     const tr = document.createElement("tr");
     const det = s.episodes ? `${s.detected}/${s.episodes} (${s.detectPct}%)` : "–";
-    const cells = [[s.n,1],[s.pid],[s.task],[s.mode === "script" ? "scripted" + (s.completed === false ? " (stopped)" : "") : s.mode === "free" ? "free" : "–"],[s.adapt],[s.minutes,1],[s.alerts,1],[det,1],[pct(s.falseTruthPct),1],[s.falseReported ?? s.falseAlerts ?? "–",1],[s.meanReturnS ?? "–",1],[s.meanStayS ?? "–",1],[s.teacherNotices ?? "–",1]];
+    const cells = [[s.n,1],[s.pid],[s.task],[s.adapt === "on" ? "2 · learning" : "1 · no learning"],[s.mode === "script" ? "scripted" + (s.completed === false ? " (stopped)" : "") : s.mode === "free" ? "free" : "–"],[s.minutes,1],[s.alerts,1],[det,1],[pct(s.falseTruthPct),1],[s.meanReturnS ?? "–",1],[s.meanStayS ?? "–",1],[s.teacherNotices ?? "–",1]];
     cells.forEach(([v,n]) => { const td = document.createElement("td"); td.textContent = v; if (n) td.className = "n"; tr.appendChild(td); });
     tb.appendChild(tr);
   });
@@ -881,8 +915,8 @@ function drawCharts(forExport){
     });
   });
   g.textAlign = "left"; g.font = "500 18px 'IBM Plex Sans', sans-serif";
-  g.fillStyle = col.base; g.fillRect(40, H - 34, 18, 18); g.fillStyle = col.ink; g.fillText("Baseline (learning off)", 66, H - 19);
-  g.fillStyle = col.adapt; g.fillRect(300, H - 34, 18, 18); g.fillStyle = col.ink; g.fillText("Adaptive (learning on)", 326, H - 19);
+  g.fillStyle = col.base; g.fillRect(40, H - 34, 18, 18); g.fillStyle = col.ink; g.fillText("Round 1 · no learning", 66, H - 19);
+  g.fillStyle = col.adapt; g.fillRect(300, H - 34, 18, 18); g.fillStyle = col.ink; g.fillText("Round 2 · with learning", 326, H - 19);
   const n = Object.values(A).reduce((x,a)=>x+a.n,0);
   g.fillStyle = col.muted; g.textAlign = "right"; g.fillText(`${n} session${n === 1 ? "" : "s"} with ground truth`, W - 40, H - 19);
 }
@@ -900,6 +934,7 @@ function rr(g, x, y, w, h, r){ g.beginPath(); g.roundRect ? g.roundRect(x, y, w,
 function zoneRect(G, t){ return [G.cx - t.left*G.s, G.cy - t.up*G.s, (t.left + t.right)*G.s, (t.up + t.down)*G.s]; }
 function drawMap(){
   const [g, W, H] = fit(map), G = geom(W, H), pr = prof();
+  if (W < 40 || H < 40) return;
   const zone = tok("--zone"), ink = tok("--ink"), muted = tok("--muted"), line = tok("--line"), nudge = tok("--nudge");
   g.clearRect(0,0,W,H);
   g.lineWidth = 1; g.strokeStyle = line;
@@ -949,7 +984,7 @@ function drawTimeline(){
   const muted = tok("--muted");
   if (!sess || !sess.samples.length){
     g.fillStyle = tok("--line"); rr(g, 0, 16, W, 22, 6); g.fill();
-    g.fillStyle = muted; g.font = "12px " + tok("--sans"); g.textAlign = "left"; g.fillText("Timeline starts when a session runs", 10, 31); return;
+    g.fillStyle = muted; g.font = "12px " + tok("--sans"); g.textAlign = "left"; g.fillText("The timeline fills in while a test runs", 10, 31); return;
   }
   const t0 = sess.start, span = Math.max(60000, now() - t0), x = t => (t - t0) / span * W;
   const C = { true: tok("--zone"), false: tok("--nudge"), null: tok("--lost") };
@@ -967,8 +1002,8 @@ function updateUI(){
   const z = inZone(), pr = prof();
   let sayT, sub, meter = null;
   if (calib){ const left = Math.ceil((calib.until - now())/1000); sayT = `Calibrating… ${left}s`; sub = `Keep looking at the ${task === "reading" ? "book or worksheet" : "teacher or screen"} as usual.`; }
-  else if (!pr.base){ sayT = "Calibrate to set this student’s zone"; sub = "The blue area is where this student’s head can point while still on task."; }
-  else if (!sess){ sayT = z === true ? "Ready · on task" : z === false ? "Ready · looking away" : "Ready · face not visible"; sub = "Press Start in step 3 to begin."; }
+  else if (!pr.base){ sayT = "Calibrate first"; sub = "This sets the blue zone: where this volunteer’s head points while on task."; }
+  else if (!sess){ sayT = z === true ? "Ready · on task" : z === false ? "Ready · looking away" : "Ready · face not visible"; sub = "The dot shows where the head is pointing."; }
   else if (sess.state === "alert"){ sayT = sess.nudgesInEpisode >= 2 ? "Second nudge sent" : "Nudge sent"; sub = sess.teacherSent ? "Teacher has been notified." : "Waiting for the student to return to the task."; }
   else if (z === true){ sayT = "On task"; sub = sess.script ? "Scripted test running." : `${task === "reading" ? "Reading" : "Listening"} · nothing to do.`; }
   else if (now() < sess.cooldownUntil){ sayT = z === false ? "Looking away" : "Face not visible"; sub = "Quiet period after the last nudge."; }
@@ -982,10 +1017,7 @@ function updateUI(){
   if (sess){
     const total = sess.onMs + sess.offMs + sess.lostMs, n = sess.alerts.length;
     const mean = a => a.length ? (a.reduce((x,y)=>x+y,0)/a.length/1000).toFixed(1) + "s" : "–";
-    $("mDur").textContent = fmt(now() - sess.start);
-    $("mOn").textContent = total ? Math.round(100*sess.onMs/total) + "%" : "–";
-    $("mAl").textContent = n; $("mFa").textContent = sess.falseCount;
-    $("mRec").textContent = mean(sess.recov); $("mStay").textContent = mean(sess.stays);
+    $("mAl").textContent = n; $("mRec").textContent = mean(sess.recov);
     const open = sess.obsOpen != null ? [[sess.obsOpen, now()]] : [];
     const s = scoreNow(open);
     $("mDet").textContent = s.episodes ? `${s.detected}/${s.episodes}` : "–";
@@ -993,9 +1025,9 @@ function updateUI(){
   }
 }
 
-function loop(t){ sense(t); stepCalib(now()); step(now()); stepScript(now()); drawMap(); drawTimeline(); updateUI(); requestAnimationFrame(loop); }
+function loop(t){ sense(t); stepCalib(now()); step(now()); stepScript(now()); if (!$("viewRun").hidden){ drawMap(); drawTimeline(); } updateUI(); requestAnimationFrame(loop); }
 
-setModelPill(); setCamNote(); setMode("script"); showSetup(); renderTable(); drawCharts();
+setModelPill(); setCamNote(); setMode("script"); selectRound("reading", false); renderTable(); drawCharts();
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => drawCharts());
 [...events].slice(-80).reverse().forEach(e => renderEv(e, false));
 requestAnimationFrame(loop);
