@@ -57,8 +57,10 @@ export function aggregate(sessions) {
 export function drawCharts(c, sessions, forExport) {
   const g = c.getContext("2d"), W = c.width, H = c.height;
   // On screen: night-study colours. Exported PNG: white background, so it prints cleanly on the poster.
-  const col = { bg: "#ffffff", ink: "#0d2a1b", muted: "#5a6d62", line: "#dde6de", r1: "#c3cec5", r2: "#0e7a43" };
-  g.fillStyle = col.bg; g.fillRect(0, 0, W, H);
+  // On screen: white on the glowing green. Exported PNG: white background for the printed poster.
+  const col = forExport ? { bg: "#ffffff", ink: "#0d2a1b", muted: "#5a6d62", line: "#dde6de", r1: "#c3cec5", r2: "#0e7a43" }
+                        : { bg: null, ink: "#ffffff", muted: "rgba(255,255,255,.7)", line: "rgba(255,255,255,.16)", r1: "rgba(255,255,255,.35)", r2: "#7dffb9" };
+  g.clearRect(0, 0, W, H); if (col.bg){ g.fillStyle = col.bg; g.fillRect(0, 0, W, H); }
   const A = aggregate(sessions);
   const panels = [
     { title: "False alert rate", sub: "main result · lower is better", key: "falsePct", unit: "%", max: 100 },

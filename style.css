@@ -1,24 +1,27 @@
 /* FocusBack · SAIF 2026 visual identity: cream ground, deep teal ink, five-colour pixel motif. */
 :root{
-  /* FocusBack identity · "Green light": bold and bright.
-     Green means on task (the zone, the main action). Orange appears only for a nudge. */
-  --paper:#f5f8f3;  --surface:#ffffff; --sunk:#eef3ec; --raise:#ffffff;
-  --ink:#0d2a1b;    --muted:#5a6d62;   --line:#dde6de;
-  --brand:#0e7a43;  --brand-deep:#08502b;
-  --zone:#14a05a;   --zone-ink:#ffffff; --nudge:#ff7a1a; --truth:#7a4cc2; --lost:#b9c4bb; --alarm:#e5484d;
-  --lamp:rgb(255 122 26 / .10);
-  --sans:"Readex Pro","Rubik",system-ui,-apple-system,"Segoe UI",sans-serif;
+  /* FocusBack identity · "Glow": a deep green field and one glowing focus ring.
+     Mint = focused (the ring, the zone). Orange glow = a nudge, and nothing else. */
+  --paper:#05301b;
+  --surface:rgb(255 255 255 / .08); --sunk:rgb(0 0 0 / .18); --raise:rgb(255 255 255 / .14);
+  --ink:#ffffff;    --muted:rgb(255 255 255 / .72); --line:rgb(255 255 255 / .16);
+  --brand:#ffffff;  --brand-deep:#0a5a33;
+  --zone:#7dffb9;   --zone-ink:#05301b; --nudge:#ff8a3d; --truth:#c9b6ff; --lost:rgb(255 255 255 / .3); --alarm:#ff7b7b;
+  --glow:0 0 24px rgb(125 255 185 / .55);
+  --glow-nudge:0 0 30px rgb(255 138 61 / .7);
+  --lamp:rgb(255 138 61 / .12);
+  --sans:"Readex Pro",system-ui,-apple-system,"Segoe UI",sans-serif;
   --display:"Alexandria","Readex Pro",system-ui,sans-serif;
   --ar:"Alexandria","Readex Pro",system-ui,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --r:18px; --dur:140ms;
-  --shadow:0 1px 2px rgb(13 42 27 / .05),0 8px 24px rgb(13 42 27 / .07);
-  color-scheme:light;
+  --r:22px; --dur:160ms;
+  --shadow:0 20px 50px rgb(0 0 0 / .18);
+  color-scheme:dark;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{margin:0}
-body{background:var(--paper);color:var(--ink);font:16px/1.6 var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh}
+body{color:var(--ink);font:16px/1.6 var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh;background:radial-gradient(1100px 700px at 72% 18%,#16a35f 0%,#0a5a33 45%,#05301b 100%) fixed,#05301b}
 button,input,select{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--zone);outline-offset:2px}
 a{color:var(--zone)}
@@ -93,20 +96,25 @@ h2{display:flex;align-items:center;gap:10px}
 h2 .i{color:var(--zone)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
-/* night-study details */
-.card{background:var(--surface)}
-.btn{background:var(--surface)}
-.btn.main:hover:not(:disabled){filter:brightness(1.08)}
-.field input{background:var(--sunk)}
-th{background:var(--sunk)}
-::selection{background:color-mix(in srgb,var(--zone) 35%,transparent)}
 
-/* green band header: the signature */
-.top{background:linear-gradient(120deg,var(--brand-deep),var(--brand) 55%,#1b9a55);color:#fff;position:relative;overflow:hidden;margin-bottom:24px}
-.top::after{content:"";position:absolute;right:-120px;top:-160px;width:420px;height:420px;border-radius:50%;background:radial-gradient(closest-side,rgb(255 122 26 / .55),transparent);pointer-events:none}
-.top > *{position:relative;z-index:1}
-.top .brand span{color:rgb(255 255 255 / .75)}
-.top .pill{background:rgb(255 255 255 / .14);border-color:rgb(255 255 255 / .28);color:#fff}
+/* ---- Glow ---- */
+.card{background:var(--surface);border:1px solid var(--line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--shadow)}
+.btn{background:var(--raise);border-color:var(--line);color:var(--ink)}
+.btn:hover:not(:disabled){border-color:rgb(255 255 255 / .4);background:rgb(255 255 255 / .2)}
+.btn.main{background:#ffffff;color:var(--brand-deep);border-color:#ffffff}
+.btn.main:hover:not(:disabled){filter:none;background:#ffffff;box-shadow:var(--glow)}
+.btn.big{border-radius:999px}
+.seg{background:rgb(0 0 0 / .2)}
+.seg button[aria-pressed=true]{background:rgb(255 255 255 / .16);color:#fff;box-shadow:0 0 0 1px rgb(255 255 255 / .22)}
+.field input{background:rgb(0 0 0 / .22);border-color:var(--line);color:#fff}
+.field input::placeholder{color:rgb(255 255 255 / .4)}
+th{background:rgb(0 0 0 / .15)}
+.pill{background:rgb(255 255 255 / .1);border-color:var(--line);color:#fff}
+.pill.ok i{background:var(--zone);box-shadow:var(--glow)}
 .brand h1{font-family:var(--display);font-weight:700}
-h2,.hero h2{font-family:var(--display)}
-.btn.main:hover:not(:disabled){filter:brightness(1.1)}
+.brand span{color:var(--muted)}
+h2{font-family:var(--display)}
+h2 .i{color:var(--zone)}
+.link{color:var(--zone)}
+.logo{filter:drop-shadow(0 0 6px rgb(125 255 185 / .6))}
+::selection{background:rgb(125 255 185 / .35)}

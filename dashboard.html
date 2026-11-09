@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0e7a43">
+<meta name="theme-color" content="#05301b">
 <title>FocusBack · Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&family=Readex+Pro:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=1794203844">
+<link rel="stylesheet" href="style.css?v=1794204824">
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <style>
 /* Layout: session code and live status on top (what a teacher glances at), the Round 1 vs Round 2 comparison below. */
@@ -63,13 +63,12 @@
 details.more > summary{cursor:pointer;padding:16px 20px;min-height:44px;color:var(--muted);font-weight:500}
 details.more[open] > summary{border-bottom:1px solid var(--line)}
 details.more .cardhead{border-top:1px solid var(--line)}
-.hero{background:linear-gradient(135deg,#ffffff,#f1f8f2)}
 .state.on{border-color:var(--zone);color:var(--brand)}
 </style>
 </head>
 <body>
 <header class="top">
-  <a class="brand" href="./"><svg class="logo" viewBox="0 0 34 34" aria-hidden="true"><rect x="3" y="7" width="28" height="20" rx="7" fill="none" stroke="#ffffff" stroke-width="2.6"/><circle cx="17" cy="17" r="4.5" fill="#ff7a1a"/></svg><h1>FocusBack</h1><span>Teacher / Parent dashboard</span></a>
+  <a class="brand" href="./"><svg class="logo" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="12" fill="none" stroke="#7dffb9" stroke-width="3"/><circle cx="17" cy="17" r="2.6" fill="#ffffff"/><circle cx="26" cy="8" r="4" fill="#ff8a3d"/></svg><h1>FocusBack</h1><span>Teacher / Parent dashboard</span></a>
   <span class="pill" id="linkPill" role="status"><i></i><span id="linkTxt">No session</span></span>
 </header>
 
@@ -131,7 +130,7 @@ details.more .cardhead{border-top:1px solid var(--line)}
 </div>
 
 <script type="module">
-import { TASKS, TASK_LABEL, ROUND_LABEL, aggregate, drawCharts, csv, download, store, normCode, newCode, Link } from "./common.js?v=1794203844";
+import { TASKS, TASK_LABEL, ROUND_LABEL, aggregate, drawCharts, csv, download, store, normCode, newCode, Link } from "./common.js?v=1794204824";
 const $ = id => document.getElementById(id);
 
 let link = null, live = null, liveAt = 0;

@@ -3,19 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0e7a43">
+<meta name="theme-color" content="#05301b">
 <title>FocusBack · Student</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&family=Readex+Pro:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=1794203844">
+<link rel="stylesheet" href="style.css?v=1794204824">
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 /* Layout: one calm column. Task, camera, three-step progress, one primary button.
    Everything else (volunteer code, dashboard link, smartwatch) waits under "Settings". */
 .solo{max-width:620px;margin:0 auto;padding:4px 16px 48px;display:flex;flex-direction:column;gap:18px}
-.camwrap{position:relative;border-radius:18px;overflow:hidden;aspect-ratio:4/3;max-width:100%;background:radial-gradient(120% 90% at 50% 40%,#123a27,#06180f);border:1px solid var(--line)}
+.camwrap{position:relative;border-radius:18px;overflow:hidden;aspect-ratio:4/3;max-width:100%;background:radial-gradient(120% 90% at 50% 40%,#0d3d26,#03170c);border:1px solid var(--line);box-shadow:var(--shadow)}
 .camwrap video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
 .camwrap .msg{position:absolute;inset:auto 12px 12px 12px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;color:#dfe6e4;font-size:14px;padding:10px 12px;border-radius:12px;background:rgb(7 12 28 / .75);backdrop-filter:blur(6px)}
 .camwrap .tag{position:absolute;top:12px;left:12px}
@@ -34,17 +34,17 @@
 .more .set{display:flex;flex-direction:column;gap:18px;padding-top:8px}
 .row2{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
 /* Student view */
-#sv{position:fixed;inset:0;z-index:20;background:radial-gradient(800px 500px at 50% -10%,var(--lamp),transparent 70%),var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:24px;text-align:center}
+#sv{position:fixed;inset:0;z-index:20;background:radial-gradient(1000px 700px at 50% 30%,#14995a 0%,#0a5a33 50%,#05301b 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:24px;text-align:center}
 #sv .halo{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 0 var(--nudge);transition:box-shadow .4s ease}
 #sv.alerting .halo{box-shadow:inset 0 0 0 18px var(--nudge)}
 #sv.alerting{animation:flash 1.2s ease 1}
-@keyframes flash{0%,100%{background-color:var(--paper)}20%,60%{background-color:color-mix(in srgb,var(--nudge) 22%,var(--paper))}40%{background-color:var(--paper)}}
-#sv .mark{width:104px;height:104px;border-radius:50%;border:3px solid var(--zone);display:grid;place-items:center;box-shadow:0 0 40px color-mix(in srgb,var(--zone) 30%,transparent)}
-#sv .mark i{width:26px;height:26px;border-radius:50%;background:var(--zone)}
-#sv.alerting .mark{border-color:var(--nudge);box-shadow:0 0 50px color-mix(in srgb,var(--nudge) 45%,transparent)} #sv.alerting .mark i{background:var(--nudge)}
+@keyframes flash{0%,100%{filter:none}25%,65%{filter:saturate(1.3) brightness(1.08)}}
+#sv .mark{width:180px;height:180px;border-radius:50%;border:8px solid var(--zone);display:grid;place-items:center;box-shadow:0 0 40px rgb(125 255 185 / .55),inset 0 0 30px rgb(125 255 185 / .25);transition:border-color .3s,box-shadow .3s}
+#sv .mark i{width:22px;height:22px;border-radius:50%;background:#fff;transition:background .3s,transform .3s}
+#sv.alerting .mark{border-color:var(--nudge);box-shadow:0 0 60px rgb(255 138 61 / .75),inset 0 0 30px rgb(255 138 61 / .3)} #sv.alerting .mark i{background:var(--nudge);transform:scale(1.6)}
 #svTask{font:700 clamp(30px,5vw,48px)/1.4 var(--ar);margin:0;direction:rtl;max-width:22ch}
 #svBar{width:min(320px,70vw);height:6px;border-radius:999px;background:var(--line);overflow:hidden}
-#svBar i{display:block;height:100%;width:0;background:var(--ink)}
+#svBar i{display:block;height:100%;width:0;background:var(--zone);box-shadow:var(--glow)}
 #svMsg{font:700 clamp(24px,4vw,36px)/1.2 var(--sans);margin:0}
 #svSub{margin:0;color:var(--muted);max-width:40ch}
 #sv .acts{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
@@ -73,7 +73,7 @@
 </head>
 <body>
 <header class="top">
-  <a class="brand" href="./"><svg class="logo" viewBox="0 0 34 34" aria-hidden="true"><rect x="3" y="7" width="28" height="20" rx="7" fill="none" stroke="#ffffff" stroke-width="2.6"/><circle cx="17" cy="17" r="4.5" fill="#ff7a1a"/></svg><h1>FocusBack</h1><span>Student</span></a>
+  <a class="brand" href="./"><svg class="logo" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="12" fill="none" stroke="#7dffb9" stroke-width="3"/><circle cx="17" cy="17" r="2.6" fill="#ffffff"/><circle cx="26" cy="8" r="4" fill="#ff8a3d"/></svg><h1>FocusBack</h1><span>Student</span></a>
   <span class="pill" id="linkPill" role="status" hidden><i></i><span id="linkTxt"></span></span>
   <span class="pill" id="modelPill" role="status"><i></i><span id="modelTxt">Loading face model…</span></span>
 </header>
@@ -150,7 +150,7 @@
 
 <script type="module">
 import { FilesetResolver, FaceLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
-import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link } from "./common.js?v=1794203844";
+import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link } from "./common.js?v=1794204824";
 
 const $ = id => document.getElementById(id);
 const now = () => performance.now();
@@ -494,7 +494,7 @@ function drawPose(){
   const g = pc.getContext("2d"); g.setTransform(d,0,0,d,0,0);
   const W = r.width, H = r.height, s = Math.min(W/110, H/80), cx = W/2, cy = H/2, z = zone();
   g.clearRect(0,0,W,H);
-  const Z = "#2fd47f", DOT = "#ffffff", WARN = "#ff7a1a";
+  const Z = "#7dffb9", DOT = "#ffffff", WARN = "#ff8a3d";
   g.strokeStyle = "rgba(255,255,255,.18)"; [15,30].forEach(k => { g.beginPath(); g.arc(cx, cy, k*s, 0, Math.PI*2); g.stroke(); });
   const t = z.tol;
   g.globalAlpha = base() ? .22 : .1; g.fillStyle = Z; g.beginPath(); g.roundRect?.(cx - t.left*s, cy - t.up*s, (t.left+t.right)*s, (t.up+t.down)*s, 14); g.fill();
