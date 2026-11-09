@@ -139,9 +139,16 @@ export class Link {
       this.bc = new BroadcastChannel("focusback-" + code);
       this.bc.onmessage = e => this._in(e.data.topic, e.data.msg);
     } catch {}
+    this._start();
+  }
+  async _start() {
+    // Load the messaging library from a second CDN if the first one was blocked.
+    if (!window.mqtt) {
+      await new Promise(res => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"; sc.onload = res; sc.onerror = res; document.head.appendChild(sc); });
+    }
+    if (!window.mqtt) { this._status(this.bc ? "local" : "offline"); return; }
     try {
-      if (!window.mqtt) throw new Error("mqtt library not loaded");
-      this.client = window.mqtt.connect(BROKER, { clientId: "fb_" + role + "_" + Math.random().toString(16).slice(2, 10), clean: true, connectTimeout: 8000, reconnectPeriod: 3000 });
+      this.client = window.mqtt.connect(BROKER, { clientId: "fb_" + this.role + "_" + Math.random().toString(16).slice(2, 10), clean: true, connectTimeout: 8000, reconnectPeriod: 3000 });
       this.client.on("connect", () => { this.client.subscribe(this.base + "#"); this._status("online"); });
       this.client.on("reconnect", () => this._status("connecting"));
       this.client.on("offline", () => this._status("offline"));

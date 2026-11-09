@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&family=Readex+Pro:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=1794204824">
+<link rel="stylesheet" href="style.css?v=1794208572">
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <style>
 /* Layout: session code and live status on top (what a teacher glances at), the Round 1 vs Round 2 comparison below. */
@@ -130,7 +130,7 @@ details.more .cardhead{border-top:1px solid var(--line)}
 </div>
 
 <script type="module">
-import { TASKS, TASK_LABEL, ROUND_LABEL, aggregate, drawCharts, csv, download, store, normCode, newCode, Link } from "./common.js?v=1794204824";
+import { TASKS, TASK_LABEL, ROUND_LABEL, aggregate, drawCharts, csv, download, store, normCode, newCode, Link } from "./common.js?v=1794208572";
 const $ = id => document.getElementById(id);
 
 let link = null, live = null, liveAt = 0;
@@ -143,6 +143,7 @@ function open(code){
   store.set("dash_code", code);
   $("codeTxt").textContent = code; $("noSession").hidden = true; $("hasSession").hidden = false;
   setTimeout(() => link?.send("hello", {}), 1200);
+  clearInterval(window.__ping); window.__ping = setInterval(() => link?.send("ping", {}), 3000);
   ui();
 }
 $("btnCreate").onclick = () => open(newCode());
@@ -263,8 +264,9 @@ const STATE = { on:["On task","on"], off:["Possible off-task","off"], alert:["Pr
 function ui(){
   const quiet = !link && rows.length === 0; $("resCard").hidden = quiet; $("detCard").hidden = quiet;
   const lp = $("linkPill"), st = link?.status;
-  lp.className = "pill " + (!link ? "" : st === "online" || st === "local" ? "ok" : st === "connecting" ? "warn" : "bad");
-  $("linkTxt").textContent = !link ? "No session" : st === "online" ? "Listening on " + link.code : st === "local" ? "Same-browser link · " + link.code : st === "connecting" ? "Connecting…" : "Offline";
+  const fresh0 = live && Date.now() - liveAt < 6000;
+  lp.className = "pill " + (!link ? "" : fresh0 ? "ok" : st === "offline" ? "bad" : "warn");
+  $("linkTxt").textContent = !link ? "No session" : fresh0 ? "Student linked · " + link.code : st === "offline" ? "Can’t reach the link server" : st === "connecting" ? "Connecting…" : "Waiting for the student · " + link.code;
   const fresh = live && Date.now() - liveAt < 6000;
   if (!link){ $("who").firstChild.textContent = "Create a session to begin"; $("whoSub").textContent = "Then enter the code on the student page."; }
   else if (!live){ $("who").firstChild.textContent = "Waiting for the student page…"; $("whoSub").textContent = `Enter ${link.code} on the student device.`; }

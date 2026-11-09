@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&family=Readex+Pro:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css?v=1794204824">
+<link rel="stylesheet" href="style.css?v=1794208572">
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
@@ -149,8 +149,7 @@
 </div>
 
 <script type="module">
-import { FilesetResolver, FaceLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
-import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link } from "./common.js?v=1794204824";
+import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link } from "./common.js?v=1794208572";
 
 const $ = id => document.getElementById(id);
 const now = () => performance.now();
@@ -173,6 +172,8 @@ const demo = () => !(camState === "on" && modelState === "ready");
 // ---------- model + camera ----------
 const modelReady = (async () => {
   try{
+    // Loaded on demand, so the page still works (Demo Mode, dashboard link) if this CDN is unreachable.
+    const { FilesetResolver, FaceLandmarker } = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs");
     const files = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
     const opts = d => ({ baseOptions:{ modelAssetPath:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task", delegate:d },
       runningMode:"VIDEO", numFaces:1, outputFacialTransformationMatrixes:true });
@@ -231,7 +232,9 @@ function connect(code){
   store.set("code", code);
   setTimeout(() => { sendLive(true); sendResults(); }, 1500);
 }
-function onMsg(topic, msg){ if (topic === "hello"){ sendLive(true); sendResults(); } }
+let dashSeen = 0;
+function onMsg(topic, msg){ if (topic === "hello" || topic === "ping"){ const first = Date.now() - dashSeen > 10000; dashSeen = Date.now(); if (first || topic === "hello"){ sendLive(true); sendResults(); ui(); } } }
+setInterval(() => { if (link) ui(); }, 2500);
 $("btnLink").onclick = () => {
   if (link){ link.close(); link = null; ui(); return; }
   const c = normCode($("code").value);
@@ -463,8 +466,15 @@ window.FB_sim = (dy, dp) => { const b = zone().base; simPose = { y: b.y + dy, p:
 function ui(){
   document.querySelectorAll("[data-task]").forEach(b => { b.setAttribute("aria-pressed", b.dataset.task === task); b.disabled = !!(run || calib); });
   const lp = $("linkPill"), st = link?.status;
-  lp.className = "pill " + (!link ? "" : st === "online" || st === "local" ? "ok" : st === "connecting" ? "warn" : "bad");
-  $("linkTxt").textContent = !link ? "Enter teacher code" : st === "online" || st === "local" ? "Teacher " + link.code : st === "connecting" ? "Connecting…" : "Teacher dashboard offline";
+  // Green only when the dashboard itself has answered in the last 10 seconds.
+  const seen = link && Date.now() - dashSeen < 10000;
+  lp.className = "pill " + (!link ? "" : seen ? "ok" : st === "offline" ? "bad" : "warn");
+  $("linkTxt").textContent = !link ? "Enter teacher code"
+    : seen ? "Teacher linked · " + link.code
+    : st === "offline" ? "Can’t reach the link server"
+    : st === "connecting" ? "Connecting to " + link.code + "…"
+    : st === "local" ? "Waiting for the dashboard (this browser only)"
+    : "Waiting for the teacher dashboard · " + link.code;
   $("btnLink").querySelector("span").textContent = link ? "Disconnect" : "Connect"; $("code").disabled = !!link;
   $("modelPill").hidden = modelState === "ready";
   $("modelPill").className = "pill " + (modelState === "error" ? "bad" : "warn");
