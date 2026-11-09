@@ -56,9 +56,9 @@ export function aggregate(sessions) {
 // ---------- charts ----------
 export function drawCharts(c, sessions, forExport) {
   const g = c.getContext("2d"), W = c.width, H = c.height;
-  const light = forExport || !matchMedia("(prefers-color-scheme: dark)").matches;
-  const col = light ? { bg: "#ffffff", ink: "#0e3f3c", muted: "#5b726f", line: "#dcdccb", r1: "#c9c9b6", r2: "#3a93a6" }
-                    : { bg: "#0e3f3c", ink: "#f4f4e9", muted: "#a7bdb9", line: "#1e534e", r1: "#5d7d79", r2: "#6db8c9" };
+  // On screen: night-study colours. Exported PNG: white background, so it prints cleanly on the poster.
+  const col = forExport ? { bg: "#ffffff", ink: "#0a1124", muted: "#5a6683", line: "#dde2ec", r1: "#b9c1d3", r2: "#14a37f" }
+                        : { bg: "#111a33", ink: "#e9eef8", muted: "#97a3bf", line: "#243150", r1: "#4a5674", r2: "#5fe0b7" };
   g.fillStyle = col.bg; g.fillRect(0, 0, W, H);
   const A = aggregate(sessions);
   const panels = [
@@ -69,8 +69,8 @@ export function drawCharts(c, sessions, forExport) {
   const pw = W / 3, top = 120, bottom = H - 90;
   panels.forEach((p, i) => {
     const x0 = i * pw + 70, w = pw - 100;
-    g.textAlign = "left"; g.fillStyle = col.ink; g.font = "600 28px 'IBM Plex Sans', sans-serif"; g.fillText(p.title, x0, 52);
-    g.fillStyle = col.muted; g.font = "400 20px 'IBM Plex Sans', sans-serif"; g.fillText(p.sub, x0, 82);
+    g.textAlign = "left"; g.fillStyle = col.ink; g.font = "600 28px 'Rubik', sans-serif"; g.fillText(p.title, x0, 52);
+    g.fillStyle = col.muted; g.font = "400 20px 'Rubik', sans-serif"; g.fillText(p.sub, x0, 82);
     const vals = TASKS.flatMap(t => [A[t + "_1"][p.key], A[t + "_2"][p.key]]).filter(v => v != null);
     const max = p.max ?? Math.max(5, Math.ceil((Math.max(0, ...vals) * 1.25) / 5) * 5);
     const y = v => bottom - (v / max) * (bottom - top);
@@ -86,16 +86,16 @@ export function drawCharts(c, sessions, forExport) {
       const bw = (gw - 34) / 2, gx = x0 + j * gw + 12;
       [[1, col.r1], [2, col.r2]].forEach(([r, color], k) => {
         const v = A[t + "_" + r][p.key], bx = gx + k * (bw + 8);
-        if (v == null) { g.fillStyle = col.muted; g.font = "400 14px 'IBM Plex Sans', sans-serif"; g.textAlign = "center"; g.fillText("–", bx + bw / 2, bottom - 8); return; }
+        if (v == null) { g.fillStyle = col.muted; g.font = "400 14px 'Rubik', sans-serif"; g.textAlign = "center"; g.fillText("–", bx + bw / 2, bottom - 8); return; }
         g.fillStyle = color; g.fillRect(bx, y(v), bw, Math.max(1, bottom - y(v)));
         g.fillStyle = col.ink; g.font = "600 17px 'IBM Plex Mono', monospace"; g.textAlign = "center";
         g.fillText((p.unit === "s" ? v.toFixed(1) : Math.round(v)) + p.unit, bx + bw / 2, y(v) - 8);
       });
-      g.fillStyle = col.ink; g.font = "500 18px 'IBM Plex Sans', sans-serif"; g.textAlign = "center";
+      g.fillStyle = col.ink; g.font = "500 18px 'Rubik', sans-serif"; g.textAlign = "center";
       g.fillText(TASK_LABEL[t], gx + bw + 4, bottom + 30);
     });
   });
-  g.textAlign = "left"; g.font = "500 18px 'IBM Plex Sans', sans-serif";
+  g.textAlign = "left"; g.font = "500 18px 'Rubik', sans-serif";
   g.fillStyle = col.r1; g.fillRect(40, H - 34, 18, 18); g.fillStyle = col.ink; g.fillText("Round 1 · no learning", 66, H - 19);
   g.fillStyle = col.r2; g.fillRect(300, H - 34, 18, 18); g.fillStyle = col.ink; g.fillText("Round 2 · with learning", 326, H - 19);
   const n = Object.values(A).reduce((x, a) => x + a.n, 0);

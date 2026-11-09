@@ -3,10 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0a1124">
 <title>FocusBack · Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Rubik:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="style.css">
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <style>
@@ -14,7 +15,7 @@
 .toprow{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:stretch}
 @media (max-width:900px){.toprow{grid-template-columns:minmax(0,1fr)}}
 .codebox{display:flex;flex-direction:column;gap:14px}
-.code{font:600 44px/1 var(--mono);letter-spacing:.04em}
+.code{font:500 46px/1 var(--mono);letter-spacing:.06em;color:var(--zone)}
 .open{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
 .live{display:flex;flex-direction:column}
 .livehead{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:20px}
@@ -22,7 +23,7 @@
 .who small{display:block;font:400 13px var(--sans);color:var(--muted);margin-top:4px}
 .state{margin-left:auto;display:inline-flex;align-items:center;gap:10px;padding:10px 16px;border-radius:999px;font-weight:700;font-size:16px;background:var(--sunk);border:1.5px solid var(--line)}
 .state i{width:12px;height:12px;border-radius:50%;background:var(--lost)}
-.state.on i{background:var(--zone)} .state.off i{background:var(--nudge)} .state.alert{border-color:var(--nudge)} .state.alert i{background:var(--nudge)}
+.state.on i{background:var(--zone);box-shadow:0 0 12px var(--zone)} .state.off i{background:var(--nudge)} .state.alert{border-color:var(--nudge)} .state.alert i{background:var(--nudge)}
 .live .metrics{border-top:1px solid var(--line);margin-top:auto}
 .support{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding:16px 20px;border:1.5px solid var(--alarm);background:color-mix(in srgb,var(--alarm) 12%,var(--surface));border-radius:var(--r)}
 .support h3{margin:0;font:700 18px/1.2 var(--sans);display:flex;align-items:center;gap:8px;color:var(--alarm)}
@@ -53,11 +54,9 @@
 </style>
 </head>
 <body>
-<div class="stripe" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 <header class="top">
-  <a class="brand" href="./"><h1>FocusBack</h1><span>Teacher / Parent dashboard</span></a>
+  <a class="brand" href="./"><svg class="logo" viewBox="0 0 34 34" aria-hidden="true"><rect x="3" y="7" width="28" height="20" rx="7" fill="none" stroke="#5fe0b7" stroke-width="2.4"/><circle cx="17" cy="17" r="4" fill="#ffb547"/></svg><h1>FocusBack</h1><span>Teacher / Parent dashboard</span></a>
   <span class="pill" id="linkPill" role="status"><i></i><span id="linkTxt">No session</span></span>
-  <div class="pixels" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 </header>
 
 <div class="wrap">

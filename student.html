@@ -3,10 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0a1124">
 <title>FocusBack · Student</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Rubik:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="style.css">
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -21,29 +22,29 @@
 .stp{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
 .stp:last-child{border-bottom:0}
 .stp .num{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:500 14px var(--mono);border:1.5px solid var(--line);background:var(--sunk)}
-.stp.done .num{background:var(--zone);border-color:var(--zone);color:var(--surface)}
-.stp.next .num{background:var(--ink);border-color:var(--ink);color:var(--surface)}
-.stp b{display:block;font-size:15px}
-.stp span{font-size:13px;color:var(--muted)}
+.stp.done .num{background:var(--zone);border-color:var(--zone);color:var(--zone-ink)}
+.stp.next .num{background:transparent;border-color:var(--zone);color:var(--zone)}
+.stp > div > b{display:block;font-size:15px}
+.stp > div > span{font-size:13px;color:var(--muted)}
 .camwrap{position:relative;border-radius:12px;overflow:hidden;background:#0b0f1c;aspect-ratio:4/3;max-width:100%}
 .camwrap video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
 .camwrap .msg{position:absolute;left:12px;right:12px;bottom:12px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;color:#dfe6e4;font-size:13px;padding:10px 12px;border-radius:10px;background:rgb(10 20 28 / .72);backdrop-filter:blur(6px)}
-.camwrap .msg .btn{background:#fff;color:#0e3f3c;border:0}
-.camwrap{background:radial-gradient(120% 90% at 50% 40%,#16323a,#0b161b)}
+.camwrap .msg .btn{background:var(--zone);color:var(--zone-ink);border:0}
+.camwrap{background:radial-gradient(120% 90% at 50% 40%,#18234a,#070c1c);border:1px solid var(--line)}
 #pose{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
 #pose.demo{cursor:crosshair}
 .statusline{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
 .hint{margin:0;font-size:14px;color:var(--muted)}
 
 /* Student view */
-#sv{position:fixed;inset:0;z-index:20;background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:24px;text-align:center}
+#sv{position:fixed;inset:0;z-index:20;background:radial-gradient(800px 500px at 50% -10%,var(--lamp),transparent 70%),var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:24px;text-align:center}
 #sv .halo{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 0 var(--nudge);transition:box-shadow .4s ease}
 #sv.alerting .halo{box-shadow:inset 0 0 0 18px var(--nudge)}
 #sv.alerting{animation:flash 1.2s ease 1}
-@keyframes flash{0%,100%{background:var(--paper)}20%,60%{background:color-mix(in srgb,var(--nudge) 28%,var(--paper))}40%{background:var(--paper)}}
-#sv .mark{width:96px;height:96px;border-radius:50%;border:3px solid var(--zone);display:grid;place-items:center}
+@keyframes flash{0%,100%{background-color:var(--paper)}20%,60%{background-color:color-mix(in srgb,var(--nudge) 22%,var(--paper))}40%{background-color:var(--paper)}}
+#sv .mark{width:104px;height:104px;border-radius:50%;border:3px solid var(--zone);display:grid;place-items:center;box-shadow:0 0 40px color-mix(in srgb,var(--zone) 30%,transparent)}
 #sv .mark i{width:26px;height:26px;border-radius:50%;background:var(--zone)}
-#sv.alerting .mark{border-color:var(--nudge)} #sv.alerting .mark i{background:var(--nudge)}
+#sv.alerting .mark{border-color:var(--nudge);box-shadow:0 0 50px color-mix(in srgb,var(--nudge) 45%,transparent)} #sv.alerting .mark i{background:var(--nudge)}
 #svTask{font:600 clamp(26px,4.5vw,40px)/1.4 var(--ar);margin:0;direction:rtl;max-width:22ch}
 #svBar{width:min(320px,70vw);height:6px;border-radius:999px;background:var(--line);overflow:hidden}
 #svBar i{display:block;height:100%;width:0;background:var(--ink)}
@@ -74,12 +75,10 @@
 </style>
 </head>
 <body>
-<div class="stripe" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 <header class="top">
-  <a class="brand" href="./"><h1>FocusBack</h1><span>Student page</span></a>
+  <a class="brand" href="./"><svg class="logo" viewBox="0 0 34 34" aria-hidden="true"><rect x="3" y="7" width="28" height="20" rx="7" fill="none" stroke="#5fe0b7" stroke-width="2.4"/><circle cx="17" cy="17" r="4" fill="#ffb547"/></svg><h1>FocusBack</h1><span>Student page</span></a>
   <span class="pill" id="linkPill" role="status"><i></i><span id="linkTxt">No dashboard</span></span>
   <span class="pill" id="modelPill" role="status"><i></i><span id="modelTxt">Loading face model…</span></span>
-  <div class="pixels" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 </header>
 
 <div class="wrap">
@@ -121,7 +120,7 @@
           <canvas id="pose" aria-label="Head direction compared with the on-task zone"></canvas>
           <div class="msg" id="camNote"><span id="camTxt">Camera is off</span><button class="btn" id="btnCam"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg>Start camera</button></div>
         </div>
-        <p class="note" id="poseNote">The dot should sit inside the blue zone while the volunteer is on task.</p>
+        <p class="note" id="poseNote">The dot should sit inside the green zone while the volunteer is on task.</p>
       </section>
       <section class="card pad watch">
         <div class="watchrow">
@@ -468,7 +467,7 @@ function ui(){
   $("camNote").hidden = !demo(); $("btnCam").hidden = camState === "on";
   $("camTxt").textContent = camState === "error" ? "Camera blocked. Allow it from the address bar, then reload." : camState === "on" ? "Waiting for the face model…" : "Camera is off · Demo Mode: drag to move the head";
   $("demoBadge").hidden = !demo(); pc.classList.toggle("demo", camState !== "on");
-  $("poseNote").textContent = demo() ? "Demo Mode: drag on the map to move the head. Demo rounds never count in the results." : "The dot should sit inside the blue zone while the volunteer is on task.";
+  $("poseNote").textContent = demo() ? "Demo Mode: drag on the map to move the head. Demo rounds never count in the results." : "The dot should sit inside the green zone while the volunteer is on task.";
   const cal = !!base(), done = r => sessions.some(s => s.pid === pid() && s.task === task && s.round === r && s.completed && !s.demo);
   const d1 = done(1), d2 = done(2);
   $("btnCal").disabled = !!(run || calib); $("btnCal").querySelector("span").textContent = calib ? "Calibrating…" : cal ? "Recalibrate" : "Calibrate";
@@ -495,7 +494,7 @@ function drawPose(){
   const g = pc.getContext("2d"); g.setTransform(d,0,0,d,0,0);
   const W = r.width, H = r.height, s = Math.min(W/110, H/80), cx = W/2, cy = H/2, z = zone();
   g.clearRect(0,0,W,H);
-  const Z = "#6db8c9", DOT = "#ffffff", WARN = "#f3a05e";
+  const Z = "#5fe0b7", DOT = "#ffffff", WARN = "#ffb547";
   g.strokeStyle = "rgba(255,255,255,.18)"; [15,30].forEach(k => { g.beginPath(); g.arc(cx, cy, k*s, 0, Math.PI*2); g.stroke(); });
   const t = z.tol;
   g.globalAlpha = base() ? .22 : .1; g.fillStyle = Z; g.beginPath(); g.roundRect?.(cx - t.left*s, cy - t.up*s, (t.left+t.right)*s, (t.up+t.down)*s, 14); g.fill();
