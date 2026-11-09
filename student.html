@@ -74,7 +74,7 @@
 <body>
 <header class="top">
   <a class="brand" href="./"><svg class="logo" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="12" fill="none" stroke="#7dffb9" stroke-width="3"/><circle cx="17" cy="17" r="2.6" fill="#ffffff"/><circle cx="26" cy="8" r="4" fill="#ff8a3d"/></svg><h1>FocusBack</h1><span>Student</span></a>
-  <span class="pill" id="linkPill" role="status" hidden><i></i><span id="linkTxt"></span></span>
+  <button class="pill" id="linkPill" role="status" style="cursor:pointer;min-height:40px"><i></i><span id="linkTxt">Enter teacher code</span></button>
   <span class="pill" id="modelPill" role="status"><i></i><span id="modelTxt">Loading face model…</span></span>
 </header>
 
@@ -101,12 +101,12 @@
   <button class="btn main big wide" id="btnGo"><svg class="i lg" aria-hidden="true"><use href="#i-camera"/></svg><span>Start camera</span></button>
   <p class="hint" id="hint" role="status"></p>
 
-  <details class="more">
+  <details class="more" id="more">
     <summary>Settings</summary>
     <div class="set">
       <label class="field">Volunteer code<input id="pid" value="P01" maxlength="6" autocomplete="off"></label>
       <div class="row2">
-        <label class="field">Dashboard session code<input id="code" placeholder="FB-2741" maxlength="7" autocomplete="off"></label>
+        <label class="field">Teacher / Parent code<input id="code" placeholder="FB-2741" maxlength="7" autocomplete="off"></label>
         <button class="btn" id="btnLink"><span>Connect</span></button>
       </div>
       <p class="note" id="linkNote">Optional. Get the code from the Teacher / Parent dashboard.</p>
@@ -300,6 +300,7 @@ $("chipCal").onclick = () => calibrate();
 $("chipR1").onclick = () => startRound(1);
 $("chipR2").onclick = () => startRound(2);
 $("btnDemo").onclick = () => { demoChosen = true; ui(); };
+$("linkPill").onclick = () => { $("more").open = true; $("code").scrollIntoView({ behavior:"smooth", block:"center" }); setTimeout(() => $("code").focus(), 300); };
 function startRound(round){
   if (!base() || run || calib) return;
   const segs = []; for (let c = 0; c < CYCLES; c++) SCRIPTS[task].forEach(s => segs.push({ ...s }));
@@ -462,9 +463,8 @@ window.FB_sim = (dy, dp) => { const b = zone().base; simPose = { y: b.y + dy, p:
 function ui(){
   document.querySelectorAll("[data-task]").forEach(b => { b.setAttribute("aria-pressed", b.dataset.task === task); b.disabled = !!(run || calib); });
   const lp = $("linkPill"), st = link?.status;
-  lp.hidden = !link;
-  lp.className = "pill " + (st === "online" || st === "local" ? "ok" : st === "connecting" ? "warn" : "bad");
-  $("linkTxt").textContent = !link ? "" : st === "online" || st === "local" ? "Dashboard " + link.code : st === "connecting" ? "Connecting…" : "Dashboard offline";
+  lp.className = "pill " + (!link ? "" : st === "online" || st === "local" ? "ok" : st === "connecting" ? "warn" : "bad");
+  $("linkTxt").textContent = !link ? "Enter teacher code" : st === "online" || st === "local" ? "Teacher " + link.code : st === "connecting" ? "Connecting…" : "Teacher dashboard offline";
   $("btnLink").querySelector("span").textContent = link ? "Disconnect" : "Connect"; $("code").disabled = !!link;
   $("modelPill").hidden = modelState === "ready";
   $("modelPill").className = "pill " + (modelState === "error" ? "bad" : "warn");
