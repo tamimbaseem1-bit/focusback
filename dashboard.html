@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FocusBack · Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<style>
+/* Layout: session code and live status on top (what a teacher glances at), the Round 1 vs Round 2 comparison below. */
+.toprow{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:stretch}
+@media (max-width:900px){.toprow{grid-template-columns:minmax(0,1fr)}}
+.codebox{display:flex;flex-direction:column;gap:14px}
+.code{font:600 44px/1 var(--mono);letter-spacing:.04em}
+.open{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
+.live{display:flex;flex-direction:column}
+.livehead{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:20px}
+.who{font:600 20px/1.2 var(--sans)}
+.who small{display:block;font:400 13px var(--sans);color:var(--muted);margin-top:4px}
+.state{margin-left:auto;display:inline-flex;align-items:center;gap:10px;padding:10px 16px;border-radius:999px;font-weight:700;font-size:16px;background:var(--sunk);border:1.5px solid var(--line)}
+.state i{width:12px;height:12px;border-radius:50%;background:var(--lost)}
+.state.on i{background:var(--zone)} .state.off i{background:var(--nudge)} .state.alert{border-color:var(--nudge)} .state.alert i{background:var(--nudge)}
+.live .metrics{border-top:1px solid var(--line);margin-top:auto}
+.support{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding:16px 20px;border:1.5px solid var(--alarm);background:color-mix(in srgb,var(--alarm) 12%,var(--surface));border-radius:var(--r)}
+.support h3{margin:0;font:700 18px/1.2 var(--sans)}
+.support p{margin:2px 0 0;font-size:13px;color:var(--muted)}
+.support .btn{margin-left:auto}
+.cmp{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:800px){.cmp{grid-template-columns:minmax(0,1fr)}}
+.task{padding:18px 20px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:10px;min-width:0}
+.task:last-child{border-right:0}
+@media (max-width:800px){.task{border-right:0;border-bottom:1px solid var(--line)}.task:last-child{border-bottom:0}}
+.task h3{margin:0;font:600 16px/1.2 var(--sans);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.trend{font:600 12px var(--sans);padding:3px 10px;border-radius:999px;background:var(--sunk);color:var(--muted)}
+.trend.good{background:color-mix(in srgb,var(--zone) 20%,transparent);color:var(--zone)}
+.trend.bad{background:color-mix(in srgb,var(--alarm) 18%,transparent);color:var(--alarm)}
+.task table th,.task table td{padding:7px 6px;background:none}
+.task table th{font-size:11px}
+#chartWrap{padding:18px}
+#charts{display:block;width:100%;height:auto;max-width:100%}
+.feed{max-height:260px;overflow:auto;padding:6px 0}
+.ev{display:grid;grid-template-columns:92px 10px minmax(0,1fr);gap:10px;align-items:baseline;padding:6px 20px;font-size:13px}
+.ev time{font:12px var(--mono);color:var(--muted)}
+.ev i{width:8px;height:8px;border-radius:50%;background:var(--lost);align-self:center}
+.ev.a i{background:var(--nudge)} .ev.r i{background:var(--zone)} .ev.t i{background:var(--alarm)} .ev.f i{background:var(--truth)}
+.ev span{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="stripe" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+<header class="top">
+  <a class="brand" href="./"><h1>FocusBack</h1><span>Teacher / Parent dashboard</span></a>
+  <span class="pill" id="linkPill"><i></i><span id="linkTxt">No session</span></span>
+  <div class="pixels" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+</header>
+
+<div class="wrap">
+  <div class="toprow">
+    <section class="card pad codebox" id="codeCard">
+      <div id="noSession" class="codebox">
+        <h2>Start a session</h2>
+        <button class="btn main big" id="btnCreate">Create session</button>
+        <div class="open">
+          <label class="field">Or open an existing code<input id="openCode" placeholder="FB-2741" maxlength="7" autocomplete="off"></label>
+          <button class="btn" id="btnOpen">Open</button>
+        </div>
+      </div>
+      <div id="hasSession" class="codebox" hidden>
+        <span class="note">Session code</span>
+        <div class="code" id="codeTxt">FB-0000</div>
+        <p class="note">Type this code on the student page to link the two devices.</p>
+        <div style="display:flex;gap:16px;flex-wrap:wrap"><button class="link" id="btnCopy">Copy student link</button><button class="link" id="btnNew">New session</button></div>
+        <span class="note" id="copyNote"></span>
+      </div>
+    </section>
+
+    <section class="card live">
+      <div class="livehead">
+        <div class="who" id="who">Waiting for the student page…<small id="whoSub">Nothing is shown until a student device joins with this code.</small></div>
+        <span class="badge demo" id="demoTag" hidden>Demo Mode</span>
+        <span class="state" id="state"><i></i><span id="stateTxt">Not connected</span></span>
+      </div>
+      <div class="metrics">
+        <div class="metric"><b id="mAl">–</b><span>Alerts</span></div>
+        <div class="metric"><b id="mFa">–</b><span>Wrong alerts</span></div>
+        <div class="metric"><b id="mDet">–</b><span>Real off-task caught</span></div>
+        <div class="metric"><b id="mRec">–</b><span>Avg. return time</span></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="support" id="support" hidden aria-live="assertive">
+    <div><h3>Teacher support needed</h3><p id="supportTxt"></p></div>
+    <button class="btn" id="btnSupportOk">Dismiss</button>
+  </section>
+
+  <section class="card">
+    <div class="cardhead">
+      <div><h2>Round 1 vs Round 2</h2><p class="note">Success = fewer wrong alerts in Round 2, while real off-task is still caught.</p></div>
+    </div>
+    <div class="cmp" id="cmp"></div>
+  </section>
+
+  <section class="card">
+    <div class="cardhead">
+      <div><h2>Poster charts</h2><p class="note">All finished rounds in this browser. Demo rounds are excluded.</p></div>
+      <button class="btn main" id="btnPng">Download charts</button>
+    </div>
+    <div id="chartWrap"><canvas id="charts" width="1500" height="560" aria-label="Round 1 and Round 2 results"></canvas></div>
+  </section>
+
+  <section class="card">
+    <div class="cardhead">
+      <div><h2>Rounds</h2><p class="note">Every round received from student devices.</p></div>
+      <button class="btn" id="btnCsv">Download data (CSV)</button>
+    </div>
+    <div class="tablewrap"><table id="tbl"><thead><tr><th>Code</th><th>Student</th><th>Task</th><th>Round</th><th>Alerts</th><th>Wrong alerts</th><th>Off-task caught</th><th>Return (s)</th><th>Tracking lost</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div class="empty" id="emptyT">No rounds yet.</div>
+  </section>
+
+  <section class="card">
+    <div class="cardhead"><div><h2>Activity</h2><p class="note">Live events from the student page. No video is ever sent.</p></div></div>
+    <div class="feed" id="feed"></div><div class="empty" id="emptyF">Events appear here during a round.</div>
+  </section>
+
+  <p class="privacy">Analysis happens on the student’s device. Video is never saved or sent. This page receives only numbers and events under a student code.</p>
+</div>
+
+<script type="module">
+import { TASKS, TASK_LABEL, ROUND_LABEL, aggregate, drawCharts, csv, download, store, normCode, newCode, Link } from "./common.js";
+const $ = id => document.getElementById(id);
+
+let link = null, live = null, liveAt = 0;
+let rows = store.get("dash_rows", []);
+let events = store.get("dash_events", []);
+
+function open(code){
+  link?.close(); live = null; liveAt = 0;
+  link = new Link(code, "dash", onMsg, () => ui());
+  store.set("dash_code", code);
+  $("codeTxt").textContent = code; $("noSession").hidden = true; $("hasSession").hidden = false;
+  setTimeout(() => link?.send("hello", {}), 1200);
+  ui();
+}
+$("btnCreate").onclick = () => open(newCode());
+$("btnOpen").onclick = () => { const c = normCode($("openCode").value); if (c) open(c); else $("openCode").focus(); };
+$("btnNew").onclick = () => { link?.close(); link = null; live = null; $("noSession").hidden = false; $("hasSession").hidden = true; store.set("dash_code", ""); ui(); };
+$("btnCopy").onclick = async () => {
+  const url = new URL("student.html?code=" + link.code, location.href).href;
+  try{ await navigator.clipboard.writeText(url); $("copyNote").textContent = "Copied: " + url; } catch { $("copyNote").textContent = url; }
+};
+$("btnSupportOk").onclick = () => { $("support").hidden = true; };
+
+function onMsg(topic, msg){
+  if (topic === "live"){ live = msg; liveAt = Date.now(); if (!msg.teacher) $("support").hidden = true; ui(); }
+  else if (topic === "results"){ mergeRows(msg.rows || []); }
+  else if (topic === "event"){
+    if (msg.type === "round_end" && msg.row) mergeRows([msg.row]);
+    if (msg.type === "teacher_support"){ $("supportTxt").textContent = `${msg.pid} did not return to ${TASK_LABEL[msg.task] || "the task"} after two private alerts.`; $("support").hidden = false; }
+    if (["alert","alert_repeat","returned","i_was_focused","im_back","teacher_support","tracking_lost","tracking_restored","round_start","round_end","calibrated"].includes(msg.type)){
+      const e = { ts: msg.ts || Date.now(), code: link?.code, pid: msg.pid, task: msg.task, round: msg.round, demo: msg.demo, type: msg.type,
+        recovery_s: msg.recovery_s, lost_s: msg.lost_s, learned: msg.learned };
+      events.push(e); if (events.length > 2000) events = events.slice(-2000); store.set("dash_events", events); renderFeed();
+    }
+  }
+}
+function mergeRows(list){
+  let changed = false;
+  for (const r of list){
+    if (!r || !r.code) continue;
+    const i = rows.findIndex(x => x.code === r.code && x.n === r.n && x.pid === r.pid);
+    if (i < 0){ rows.push(r); changed = true; } else if (JSON.stringify(rows[i]) !== JSON.stringify(r)){ rows[i] = r; changed = true; }
+  }
+  if (changed){ store.set("dash_rows", rows); renderAll(); }
+}
+
+const LBL = {
+  alert: e => ["Private alert sent", ""], alert_repeat: () => ["Second private alert", ""],
+  returned: e => ["Back on task", e.recovery_s != null ? `in ${e.recovery_s}s` : ""],
+  i_was_focused: e => ["Student: “I was focused”", e.learned ? "the system learned from it" : "recorded (Round 1 does not learn)"],
+  im_back: () => ["Student: “I’m back”", ""], teacher_support: () => ["Teacher support needed", ""],
+  tracking_lost: () => ["Tracking lost", "not counted as off-task"], tracking_restored: e => ["Tracking restored", e.lost_s != null ? `after ${e.lost_s}s` : ""],
+  round_start: e => [`${ROUND_LABEL[e.round] || "Round"} started`, TASK_LABEL[e.task] || ""], round_end: e => [`${ROUND_LABEL[e.round] || "Round"} finished`, TASK_LABEL[e.task] || ""],
+  calibrated: e => ["Calibrated", TASK_LABEL[e.task] || ""],
+};
+const CLS = { alert:"a", alert_repeat:"a", returned:"r", teacher_support:"t", i_was_focused:"f" };
+function renderFeed(){
+  const f = $("feed"); f.textContent = "";
+  const list = events.filter(e => !link || e.code === link.code).slice(-60).reverse();
+  $("emptyF").hidden = list.length > 0;
+  for (const e of list){
+    const [t, d] = (LBL[e.type] || (() => [e.type, ""]))(e);
+    const row = document.createElement("div"); row.className = "ev " + (CLS[e.type] || "");
+    const tm = document.createElement("time"); tm.textContent = new Date(e.ts).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit", second:"2-digit" });
+    const dot = document.createElement("i"); const tx = document.createElement("div"); tx.textContent = (e.pid ? e.pid + " · " : "") + t + (e.demo ? " (demo)" : "");
+    if (d){ const s = document.createElement("span"); s.textContent = " — " + d; tx.appendChild(s); }
+    row.append(tm, dot, tx); f.appendChild(row);
+  }
+}
+
+function renderCmp(){
+  const A = aggregate(rows), box = $("cmp"); box.textContent = "";
+  const f = (v, u) => v == null ? "–" : (u === "s" ? v.toFixed(1) : Math.round(v)) + u;
+  for (const t of TASKS){
+    const r1 = A[t+"_1"], r2 = A[t+"_2"], div = document.createElement("div"); div.className = "task";
+    let trend = '<span class="trend">Run both rounds</span>';
+    if (r1.falsePct != null && r2.falsePct != null){
+      const dlt = Math.round(r1.falsePct - r2.falsePct);
+      trend = dlt > 0 ? `<span class="trend good">Wrong alerts ↓ ${dlt} pts</span>` : dlt < 0 ? `<span class="trend bad">Wrong alerts ↑ ${-dlt} pts</span>` : '<span class="trend">No change yet</span>';
+    }
+    div.innerHTML = `<h3>${TASK_LABEL[t]} ${trend}</h3>
+      <table><thead><tr><th></th><th>Round 1</th><th>Round 2</th></tr></thead><tbody>
+      <tr><td>Wrong alerts</td><td class="n">${f(r1.falsePct,"%")}</td><td class="n">${f(r2.falsePct,"%")}</td></tr>
+      <tr><td>Off-task caught</td><td class="n">${f(r1.detectPct,"%")}</td><td class="n">${f(r2.detectPct,"%")}</td></tr>
+      <tr><td>Return time</td><td class="n">${f(r1.recov,"s")}</td><td class="n">${f(r2.recov,"s")}</td></tr>
+      <tr><td>Rounds</td><td class="n">${r1.n}</td><td class="n">${r2.n}</td></tr></tbody></table>`;
+    box.appendChild(div);
+  }
+}
+function renderTable(){
+  const tb = $("tbl").querySelector("tbody"); tb.textContent = "";
+  $("emptyT").hidden = rows.length > 0; $("tbl").hidden = !rows.length;
+  [...rows].sort((a,b) => (b.startedAt||"").localeCompare(a.startedAt||"")).forEach(r => {
+    const tr = document.createElement("tr");
+    const cells = [r.code, r.pid, TASK_LABEL[r.task], "Round " + r.round, r.alerts, `${r.falseAlerts} (${r.falsePct}%)`,
+      r.episodes ? `${r.detected}/${r.episodes}` : "–", r.meanReturnS ?? "–", `${r.trackingLostCount}× · ${r.trackingLostS}s`,
+      r.demo ? "Demo · excluded" : r.completed ? "" : "Stopped early"];
+    cells.forEach((v, i) => { const td = document.createElement("td"); td.textContent = v ?? "–"; if (i >= 4 && i <= 8) td.className = "n"; tr.appendChild(td); });
+    tb.appendChild(tr);
+  });
+}
+function renderAll(){ renderCmp(); renderTable(); drawCharts($("charts"), rows); renderFeed(); }
+
+$("btnPng").onclick = () => { drawCharts($("charts"), rows, true); $("charts").toBlob(b => { if (b) download("focusback_charts.png", b); drawCharts($("charts"), rows); }, "image/png"); };
+$("btnCsv").onclick = () => {
+  download("focusback_rounds.csv", new Blob([csv(rows)], { type:"text/csv" }));
+  setTimeout(() => download("focusback_events.csv", new Blob([csv(events)], { type:"text/csv" })), 600);
+};
+
+const STATE = { on:["On task","on"], off:["Possible off-task","off"], alert:["Private alert sent","alert"], lost:["Tracking lost",""], idle:["Not in a round",""] };
+function ui(){
+  const lp = $("linkPill"), st = link?.status;
+  lp.className = "pill " + (!link ? "" : st === "online" || st === "local" ? "ok" : st === "connecting" ? "warn" : "bad");
+  $("linkTxt").textContent = !link ? "No session" : st === "online" ? "Listening on " + link.code : st === "local" ? "Same-browser link · " + link.code : st === "connecting" ? "Connecting…" : "Offline";
+  const fresh = live && Date.now() - liveAt < 6000;
+  if (!link){ $("who").firstChild.textContent = "Create a session to begin"; $("whoSub").textContent = "Then enter the code on the student page."; }
+  else if (!live){ $("who").firstChild.textContent = "Waiting for the student page…"; $("whoSub").textContent = `Enter ${link.code} on the student device.`; }
+  else {
+    $("who").firstChild.textContent = `${live.pid} · ${TASK_LABEL[live.task] || live.task}`;
+    $("whoSub").textContent = live.running ? `${ROUND_LABEL[live.round]} · step ${live.step} of ${live.steps}` : "Between rounds";
+  }
+  $("demoTag").hidden = !(fresh && live.demo);
+  const [txt, cls] = !link ? ["No session",""] : !fresh ? ["Student not connected",""] : STATE[live.state] || STATE.idle;
+  $("state").className = "state " + cls; $("stateTxt").textContent = txt;
+  const has = fresh && live.running;
+  $("mAl").textContent = has ? live.alerts : "–";
+  $("mFa").textContent = has ? `${live.falseAlerts}${live.alerts ? " · " + Math.round(100*live.falseAlerts/live.alerts) + "%" : ""}` : "–";
+  $("mDet").textContent = has && live.episodes ? `${live.detected}/${live.episodes}` : "–";
+  $("mRec").textContent = has && live.recov != null ? live.recov.toFixed(1) + "s" : "–";
+}
+setInterval(ui, 2000);
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => drawCharts($("charts"), rows));
+
+const qp = normCode(new URLSearchParams(location.search).get("code")), saved = store.get("dash_code", "");
+if (qp) open(qp); else if (saved) open(saved);
+renderAll(); ui();
+</script>
+</body>
+</html>
