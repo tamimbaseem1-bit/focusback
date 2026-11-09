@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="style.css">
+<script type="module" src="common.js"></script>
 <style>
 /* Layout: one short statement, the two pages as the only choices, then the method and privacy. */
 .hero{display:flex;flex-direction:column;gap:12px;padding:12px 0 4px;max-width:46em}
@@ -16,11 +17,13 @@
 .pages{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
 @media (max-width:760px){.pages{grid-template-columns:minmax(0,1fr)}}
 .page{display:flex;flex-direction:column;gap:10px;padding:24px;text-decoration:none;color:inherit;transition:border-color .2s}
-.page:hover{border-color:var(--ink)}
+.page:hover{border-color:var(--ink);transform:translateY(-2px)} .page{transition:border-color var(--dur),transform var(--dur)}
 .page h3{margin:0;font:700 22px/1.2 var(--sans)}
 .page p{margin:0;color:var(--muted)}
 .page ul{margin:0;padding-left:18px;color:var(--muted);font-size:14px}
-.page .go{margin-top:auto;font-weight:600;color:var(--zone)}
+.page .go{margin-top:auto;font-weight:600;color:var(--zone);display:inline-flex;align-items:center;gap:6px}
+.page .ico{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:color-mix(in srgb,var(--zone) 14%,transparent);color:var(--zone)}
+.page:hover .go .i{transform:translateX(3px)} .page .go .i{transition:transform var(--dur)}
 .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:20px}
 .flow span{padding:8px 14px;border-radius:999px;background:var(--sunk);border:1px solid var(--line);font-weight:600;font-size:14px}
 .flow b{color:var(--muted);font-weight:400}
@@ -43,16 +46,16 @@
 
   <div class="pages">
     <a class="card page" href="student.html">
-      <h3>Student page</h3>
+      <span class="ico"><svg class="i lg" aria-hidden="true"><use href="#i-camera"/></svg></span><h3>Student page</h3>
       <p>Opens on the device in front of the student: iPad or laptop with a camera.</p>
       <ul><li>Camera and calibration for Reading, Writing or Listening</li><li>A soft flash and sound when attention drifts</li><li>“I’m back” and “I was focused”</li></ul>
-      <span class="go">Open student page →</span>
+      <span class="go">Open student page <svg class="i " aria-hidden="true"><use href="#i-arrow"/></svg></span>
     </a>
     <a class="card page" href="dashboard.html">
-      <h3>Teacher / Parent dashboard</h3>
+      <span class="ico"><svg class="i lg" aria-hidden="true"><use href="#i-monitor"/></svg></span><h3>Teacher / Parent dashboard</h3>
       <p>Opens on another device, at school or at home. No video, only key numbers.</p>
       <ul><li>Create a session code like FB-2741</li><li>Live status, alerts and return time</li><li>Round 1 vs Round 2 comparison and charts</li></ul>
-      <span class="go">Open dashboard →</span>
+      <span class="go">Open dashboard <svg class="i " aria-hidden="true"><use href="#i-arrow"/></svg></span>
     </a>
   </div>
 
@@ -63,7 +66,7 @@
 
   <div class="two">
     <section class="card pad" id="privacy">
-      <h2 style="margin-bottom:12px">Privacy</h2>
+      <h2 style="margin-bottom:12px"><svg class="i lg" aria-hidden="true"><use href="#i-shield"/></svg>Privacy</h2>
       <ul>
         <li>The camera is analysed on the student’s device.</li>
         <li>Video is never saved, and never sent to the teacher, the parent or any server.</li>
@@ -73,7 +76,7 @@
       </ul>
     </section>
     <section class="card pad">
-      <h2 style="margin-bottom:12px">What we measure</h2>
+      <h2 style="margin-bottom:12px"><svg class="i lg" aria-hidden="true"><use href="#i-chart"/></svg>What we measure</h2>
       <ul>
         <li><b>False alert rate</b>: the main result. It should fall in Round 2.</li>
         <li><b>Real off-task detection</b>: should stay high after learning.</li>

@@ -25,7 +25,7 @@
 .state.on i{background:var(--zone)} .state.off i{background:var(--nudge)} .state.alert{border-color:var(--nudge)} .state.alert i{background:var(--nudge)}
 .live .metrics{border-top:1px solid var(--line);margin-top:auto}
 .support{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding:16px 20px;border:1.5px solid var(--alarm);background:color-mix(in srgb,var(--alarm) 12%,var(--surface));border-radius:var(--r)}
-.support h3{margin:0;font:700 18px/1.2 var(--sans)}
+.support h3{margin:0;font:700 18px/1.2 var(--sans);display:flex;align-items:center;gap:8px;color:var(--alarm)}
 .support p{margin:2px 0 0;font-size:13px;color:var(--muted)}
 .support .btn{margin-left:auto}
 .cmp{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -38,6 +38,9 @@
 .trend.good{background:color-mix(in srgb,var(--zone) 20%,transparent);color:var(--zone)}
 .trend.bad{background:color-mix(in srgb,var(--alarm) 18%,transparent);color:var(--alarm)}
 .task table th,.task table td{padding:7px 6px;background:none}
+.spark{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.spark svg{width:100%;height:auto;max-height:60px;overflow:visible}
+.code{background:var(--sunk);border:1px dashed var(--line);border-radius:12px;padding:14px 16px;text-align:center}
 .task table th{font-size:11px}
 #chartWrap{padding:18px}
 #charts{display:block;width:100%;height:auto;max-width:100%}
@@ -53,7 +56,7 @@
 <div class="stripe" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 <header class="top">
   <a class="brand" href="./"><h1>FocusBack</h1><span>Teacher / Parent dashboard</span></a>
-  <span class="pill" id="linkPill"><i></i><span id="linkTxt">No session</span></span>
+  <span class="pill" id="linkPill" role="status"><i></i><span id="linkTxt">No session</span></span>
   <div class="pixels" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 </header>
 
@@ -61,8 +64,8 @@
   <div class="toprow">
     <section class="card pad codebox" id="codeCard">
       <div id="noSession" class="codebox">
-        <h2>Start a session</h2>
-        <button class="btn main big" id="btnCreate">Create session</button>
+        <h2><svg class="i lg" aria-hidden="true"><use href="#i-monitor"/></svg>Start a session</h2>
+        <button class="btn main big" id="btnCreate"><svg class="i " aria-hidden="true"><use href="#i-plus"/></svg>Create session</button>
         <div class="open">
           <label class="field">Or open an existing code<input id="openCode" placeholder="FB-2741" maxlength="7" autocomplete="off"></label>
           <button class="btn" id="btnOpen">Open</button>
@@ -72,7 +75,7 @@
         <span class="note">Session code</span>
         <div class="code" id="codeTxt">FB-0000</div>
         <p class="note">Type this code on the student page to link the two devices.</p>
-        <div style="display:flex;gap:16px;flex-wrap:wrap"><button class="link" id="btnCopy">Copy student link</button><button class="link" id="btnNew">New session</button></div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap"><button class="link" id="btnCopy"><svg class="i " aria-hidden="true"><use href="#i-copy"/></svg>Copy student link</button><button class="link" id="btnNew">New session</button></div>
         <span class="note" id="copyNote"></span>
       </div>
     </section>
@@ -81,7 +84,7 @@
       <div class="livehead">
         <div class="who" id="who">Waiting for the student page…<small id="whoSub">Nothing is shown until a student device joins with this code.</small></div>
         <span class="badge demo" id="demoTag" hidden>Demo Mode</span>
-        <span class="state" id="state"><i></i><span id="stateTxt">Not connected</span></span>
+        <span class="state" id="state" role="status" aria-atomic="true"><i></i><span id="stateTxt">Not connected</span></span>
       </div>
       <div class="metrics">
         <div class="metric"><b id="mAl">–</b><span>Alerts</span></div>
@@ -93,40 +96,40 @@
   </div>
 
   <section class="support" id="support" hidden aria-live="assertive">
-    <div><h3>Teacher support needed</h3><p id="supportTxt"></p></div>
+    <div><h3><svg class="i lg" aria-hidden="true"><use href="#i-bell"/></svg> Teacher support needed</h3><p id="supportTxt"></p></div>
     <button class="btn" id="btnSupportOk">Dismiss</button>
   </section>
 
   <section class="card">
     <div class="cardhead">
-      <div><h2>Round 1 vs Round 2</h2><p class="note">Success = fewer wrong alerts in Round 2, while real off-task is still caught.</p></div>
+      <div><h2><svg class="i lg" aria-hidden="true"><use href="#i-chart"/></svg>Round 1 vs Round 2</h2><p class="note">Success = fewer wrong alerts in Round 2, while real off-task is still caught.</p></div>
     </div>
     <div class="cmp" id="cmp"></div>
   </section>
 
   <section class="card">
     <div class="cardhead">
-      <div><h2>Poster charts</h2><p class="note">All finished rounds in this browser. Demo rounds are excluded.</p></div>
-      <button class="btn main" id="btnPng">Download charts</button>
+      <div><h2><svg class="i lg" aria-hidden="true"><use href="#i-chart"/></svg>Poster charts</h2><p class="note">All finished rounds in this browser. Demo rounds are excluded.</p></div>
+      <button class="btn main" id="btnPng"><svg class="i " aria-hidden="true"><use href="#i-download"/></svg>Download charts</button>
     </div>
     <div id="chartWrap"><canvas id="charts" width="1500" height="560" aria-label="Round 1 and Round 2 results"></canvas></div>
   </section>
 
   <section class="card">
     <div class="cardhead">
-      <div><h2>Rounds</h2><p class="note">Every round received from student devices.</p></div>
-      <button class="btn" id="btnCsv">Download data (CSV)</button>
+      <div><h2><svg class="i lg" aria-hidden="true"><use href="#i-user"/></svg>Rounds</h2><p class="note">Every round received from student devices.</p></div>
+      <button class="btn" id="btnCsv"><svg class="i " aria-hidden="true"><use href="#i-download"/></svg>Download data (CSV)</button>
     </div>
     <div class="tablewrap"><table id="tbl"><thead><tr><th>Code</th><th>Student</th><th>Task</th><th>Round</th><th>Alerts</th><th>Wrong alerts</th><th>Off-task caught</th><th>Return (s)</th><th>Tracking lost</th><th></th></tr></thead><tbody></tbody></table></div>
     <div class="empty" id="emptyT">No rounds yet.</div>
   </section>
 
   <section class="card">
-    <div class="cardhead"><div><h2>Activity</h2><p class="note">Live events from the student page. No video is ever sent.</p></div></div>
+    <div class="cardhead"><div><h2><svg class="i lg" aria-hidden="true"><use href="#i-bell"/></svg>Activity</h2><p class="note">Live events from the student page. No video is ever sent.</p></div></div>
     <div class="feed" id="feed"></div><div class="empty" id="emptyF">Events appear here during a round.</div>
   </section>
 
-  <p class="privacy">Analysis happens on the student’s device. Video is never saved or sent. This page receives only numbers and events under a student code.</p>
+  <p class="privacy"><svg class="i " aria-hidden="true"><use href="#i-shield"/></svg>Analysis happens on the student’s device. Video is never saved or sent. This page receives only numbers and events under a student code.</p>
 </div>
 
 <script type="module">
@@ -216,9 +219,18 @@ function renderCmp(){
       <tr><td>Wrong alerts</td><td class="n">${f(r1.falsePct,"%")}</td><td class="n">${f(r2.falsePct,"%")}</td></tr>
       <tr><td>Off-task caught</td><td class="n">${f(r1.detectPct,"%")}</td><td class="n">${f(r2.detectPct,"%")}</td></tr>
       <tr><td>Return time</td><td class="n">${f(r1.recov,"s")}</td><td class="n">${f(r2.recov,"s")}</td></tr>
-      <tr><td>Rounds</td><td class="n">${r1.n}</td><td class="n">${r2.n}</td></tr></tbody></table>`;
+      <tr><td>Rounds</td><td class="n">${r1.n}</td><td class="n">${r2.n}</td></tr></tbody></table>${spark(t)}`;
     box.appendChild(div);
   }
+}
+// Improvement over time: wrong-alert rate of every finished round of this task, oldest to newest.
+function spark(t){
+  const list = rows.filter(r => r.task === t && !r.demo && r.episodes > 0).sort((a,b) => (a.startedAt||"").localeCompare(b.startedAt||""));
+  if (list.length < 2) return '<div class="spark">Improvement over time appears after two rounds.</div>';
+  const W = 240, H = 40, n = list.length, x = i => 6 + i * (W - 12) / (n - 1), y = v => 4 + (1 - v/100) * (H - 8);
+  const pts = list.map((r,i) => `${x(i).toFixed(1)},${y(r.falsePct).toFixed(1)}`).join(" ");
+  const dots = list.map((r,i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(r.falsePct).toFixed(1)}" r="4" fill="${r.round === 2 ? "var(--zone)" : "var(--lost)"}" stroke="var(--surface)" stroke-width="1.5"><title>Round ${r.round}: ${r.falsePct}% wrong alerts</title></circle>`).join("");
+  return `<div class="spark"><span>Wrong alerts per round, oldest → newest</span><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Wrong alert rate across ${n} rounds: ${list.map(r => r.falsePct + "%").join(", ")}"><line x1="0" x2="${W}" y1="${H-4}" y2="${H-4}" stroke="var(--line)"/><polyline points="${pts}" fill="none" stroke="var(--muted)" stroke-width="1.5"/>${dots}</svg></div>`;
 }
 function renderTable(){
   const tb = $("tbl").querySelector("tbody"); tb.textContent = "";

@@ -27,9 +27,10 @@
 .stp span{font-size:13px;color:var(--muted)}
 .camwrap{position:relative;border-radius:12px;overflow:hidden;background:#0b0f1c;aspect-ratio:4/3;max-width:100%}
 .camwrap video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
-.camwrap .msg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#c9d0e2;font-size:13px;text-align:center;padding:16px}
-.camwrap .msg .btn{background:#fff;color:#1b2440;border:0}
-#pose{display:block;width:100%;height:240px;touch-action:none;border-radius:12px;background:var(--sunk)}
+.camwrap .msg{position:absolute;left:12px;right:12px;bottom:12px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;color:#dfe6e4;font-size:13px;padding:10px 12px;border-radius:10px;background:rgb(10 20 28 / .72);backdrop-filter:blur(6px)}
+.camwrap .msg .btn{background:#fff;color:#0e3f3c;border:0}
+.camwrap{background:radial-gradient(120% 90% at 50% 40%,#16323a,#0b161b)}
+#pose{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
 #pose.demo{cursor:crosshair}
 .statusline{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
 .hint{margin:0;font-size:14px;color:var(--muted)}
@@ -49,7 +50,7 @@
 #svMsg{font:700 clamp(24px,4vw,36px)/1.2 var(--sans);margin:0}
 #svSub{margin:0;color:var(--muted);max-width:40ch}
 #sv .acts{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
-#sv .acts .btn{padding:15px 24px;font-size:17px}
+#sv .acts .btn{padding:16px 26px;font-size:18px;min-height:60px;border-radius:14px}
 #svStop{position:absolute;top:20px;right:20px}
 #svTag{position:absolute;top:20px;left:20px}
 .watch{display:flex;flex-direction:column;gap:14px}
@@ -76,8 +77,8 @@
 <div class="stripe" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 <header class="top">
   <a class="brand" href="./"><h1>FocusBack</h1><span>Student page</span></a>
-  <span class="pill" id="linkPill"><i></i><span id="linkTxt">No dashboard</span></span>
-  <span class="pill" id="modelPill"><i></i><span id="modelTxt">Loading face model…</span></span>
+  <span class="pill" id="linkPill" role="status"><i></i><span id="linkTxt">No dashboard</span></span>
+  <span class="pill" id="modelPill" role="status"><i></i><span id="modelTxt">Loading face model…</span></span>
   <div class="pixels" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 </header>
 
@@ -85,28 +86,28 @@
   <div class="grid">
     <div class="col">
       <section class="card pad col">
-        <h2>Connect to the dashboard</h2>
+        <h2><svg class="i lg" aria-hidden="true"><use href="#i-link"/></svg>Connect to the dashboard</h2>
         <div class="connect">
           <label class="field">Session code<input id="code" placeholder="FB-2741" maxlength="7" autocomplete="off"></label>
-          <button class="btn" id="btnLink">Connect</button>
+          <button class="btn" id="btnLink"><svg class="i" aria-hidden="true"><use href="#i-link"/></svg><span>Connect</span></button>
         </div>
         <p class="note" id="linkNote">Get the code from the Teacher / Parent dashboard. You can also run without one.</p>
       </section>
 
       <section class="card pad col">
         <div class="statusline">
-          <h2>Test</h2>
+          <h2><svg class="i lg" aria-hidden="true"><use href="#i-user"/></svg>Test</h2>
           <label class="field" style="flex-direction:row;align-items:center;gap:8px">Volunteer<input id="pid" value="P01" maxlength="6" autocomplete="off" style="width:84px"></label>
         </div>
         <div class="seg" role="group" aria-label="Task">
-          <button data-task="reading" aria-pressed="true">Reading</button>
-          <button data-task="writing" aria-pressed="false">Writing</button>
-          <button data-task="listening" aria-pressed="false">Listening</button>
+          <button data-task="reading" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="#i-book"/></svg>Reading</button>
+          <button data-task="writing" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-pen"/></svg>Writing</button>
+          <button data-task="listening" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-ear"/></svg>Listening</button>
         </div>
         <div class="steps">
-          <div class="stp" id="stCal"><span class="num">1</span><div><b>Calibrate</b><span id="calSub">20 seconds, looking at the task as usual</span></div><button class="btn main" id="btnCal">Calibrate</button></div>
-          <div class="stp" id="stR1"><span class="num">2</span><div><b>Round 1 · no learning</b><span id="r1Sub">About 3 minutes</span></div><button class="btn" id="btnR1">Start</button></div>
-          <div class="stp" id="stR2"><span class="num">3</span><div><b>Round 2 · with learning</b><span id="r2Sub">Starts from the same calibration</span></div><button class="btn" id="btnR2">Start</button></div>
+          <div class="stp" id="stCal"><span class="num">1</span><div><b>Calibrate</b><span id="calSub">20 seconds, looking at the task as usual</span></div><button class="btn main" id="btnCal"><svg class="i" aria-hidden="true"><use href="#i-target"/></svg><span>Calibrate</span></button></div>
+          <div class="stp" id="stR1"><span class="num">2</span><div><b>Round 1 · no learning</b><span id="r1Sub">About 3 minutes</span></div><button class="btn" id="btnR1"><svg class="i fill" aria-hidden="true"><use href="#i-play"/></svg><span>Start</span></button></div>
+          <div class="stp" id="stR2"><span class="num">3</span><div><b>Round 2 · with learning</b><span id="r2Sub">Starts from the same calibration</span></div><button class="btn" id="btnR2"><svg class="i fill" aria-hidden="true"><use href="#i-play"/></svg><span>Start</span></button></div>
         </div>
         <p class="hint" id="hint"></p>
       </section>
@@ -114,24 +115,24 @@
 
     <div class="col">
       <section class="card pad col">
-        <div class="statusline"><h2>Camera check</h2><span class="badge demo" id="demoBadge">Demo Mode</span></div>
+        <div class="statusline"><h2><svg class="i lg" aria-hidden="true"><use href="#i-camera"/></svg>Camera check</h2><span class="badge demo" id="demoBadge">Demo Mode</span></div>
         <div class="camwrap">
           <video id="vid" playsinline muted></video>
-          <div class="msg" id="camNote"><span id="camTxt">Camera is off</span><button class="btn" id="btnCam">Start camera</button></div>
+          <canvas id="pose" aria-label="Head direction compared with the on-task zone"></canvas>
+          <div class="msg" id="camNote"><span id="camTxt">Camera is off</span><button class="btn" id="btnCam"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg>Start camera</button></div>
         </div>
-        <canvas id="pose" aria-label="Head direction compared with the on-task zone"></canvas>
         <p class="note" id="poseNote">The dot should sit inside the blue zone while the volunteer is on task.</p>
       </section>
       <section class="card pad watch">
         <div class="watchrow">
-          <div><h2>Smartwatch alerts</h2><p class="note">Send each private alert to the volunteer’s phone, and from there to the paired watch.</p></div>
+          <div><h2><svg class="i lg" aria-hidden="true"><use href="#i-watch"/></svg>Smartwatch alerts</h2><p class="note">Send each private alert to the volunteer’s phone, and from there to the paired watch.</p></div>
           <label class="switch"><input type="checkbox" id="watchOn" aria-label="Send alerts to a smartwatch"><span></span></label>
         </div>
         <div id="watchBox" class="watch" hidden>
           <div class="topic">
             <div id="qr" aria-label="QR code with the alert channel"></div>
             <div><span class="note">Alert channel</span><code id="topicTxt"></code>
-              <div style="display:flex;gap:14px;flex-wrap:wrap"><button class="btn" id="btnTest">Send test alert</button><button class="link" id="btnNewTopic">New channel</button></div>
+              <div style="display:flex;gap:14px;flex-wrap:wrap"><button class="btn" id="btnTest"><svg class="i" aria-hidden="true"><use href="#i-bell"/></svg>Send test alert</button><button class="link" id="btnNewTopic">New channel</button></div>
               <p class="note" id="watchNote" style="margin-top:8px"></p></div>
           </div>
           <div class="how">
@@ -149,14 +150,14 @@
   <div class="halo"></div>
   <span class="badge demo" id="svTag" hidden>Demo Mode</span>
   <button class="link" id="svStop">Stop round</button>
-  <p id="svTask"></p>
+  <p id="svTask" role="status"></p>
   <div id="svBar"><i id="svFill"></i></div>
   <div class="mark"><i></i></div>
   <p id="svMsg">You’re on track.</p>
   <p id="svSub">Only you can see this screen.</p>
   <div class="acts" id="svBtns" hidden>
-    <button class="btn main" id="btnBack">I’m back</button>
-    <button class="btn" id="btnFocused">I was focused</button>
+    <button class="btn main" id="btnBack"><svg class="i lg" aria-hidden="true"><use href="#i-arrow"/></svg>I’m back</button>
+    <button class="btn" id="btnFocused"><svg class="i lg" aria-hidden="true"><use href="#i-check"/></svg>I was focused</button>
   </div>
 </div>
 
@@ -461,20 +462,20 @@ function ui(){
   const lp = $("linkPill"), st = link?.status;
   lp.className = "pill " + (!link ? "" : st === "online" || st === "local" ? "ok" : st === "connecting" ? "warn" : "bad");
   $("linkTxt").textContent = !link ? "No dashboard" : st === "online" ? "Connected · " + link.code : st === "local" ? "Same-browser link · " + link.code : st === "connecting" ? "Connecting…" : "Offline · data is kept here";
-  $("btnLink").textContent = link ? "Disconnect" : "Connect"; $("code").disabled = !!link;
+  $("btnLink").querySelector("span").textContent = link ? "Disconnect" : "Connect"; $("code").disabled = !!link;
   $("modelPill").className = "pill " + (modelState === "ready" ? "ok" : modelState === "error" ? "bad" : "");
   $("modelTxt").textContent = modelState === "ready" ? "Face model ready" : modelState === "error" ? "Face model failed · check internet" : "Loading face model…";
   $("camNote").hidden = !demo(); $("btnCam").hidden = camState === "on";
-  $("camTxt").textContent = camState === "error" ? "Camera blocked. Allow it from the address bar, then reload." : camState === "on" ? "Waiting for the face model…" : "Camera is off";
+  $("camTxt").textContent = camState === "error" ? "Camera blocked. Allow it from the address bar, then reload." : camState === "on" ? "Waiting for the face model…" : "Camera is off · Demo Mode: drag to move the head";
   $("demoBadge").hidden = !demo(); pc.classList.toggle("demo", camState !== "on");
   $("poseNote").textContent = demo() ? "Demo Mode: drag on the map to move the head. Demo rounds never count in the results." : "The dot should sit inside the blue zone while the volunteer is on task.";
   const cal = !!base(), done = r => sessions.some(s => s.pid === pid() && s.task === task && s.round === r && s.completed && !s.demo);
   const d1 = done(1), d2 = done(2);
-  $("btnCal").disabled = !!(run || calib); $("btnCal").textContent = calib ? "Calibrating…" : cal ? "Recalibrate" : "Calibrate";
+  $("btnCal").disabled = !!(run || calib); $("btnCal").querySelector("span").textContent = calib ? "Calibrating…" : cal ? "Recalibrate" : "Calibrate";
   $("btnCal").className = "btn " + (cal ? "" : "main");
   $("btnR1").disabled = !cal || !!run || !!calib; $("btnR2").disabled = !cal || !!run || !!calib;
   $("btnR1").className = "btn " + (cal && !d1 ? "main" : ""); $("btnR2").className = "btn " + (cal && d1 && !d2 ? "main" : "");
-  $("btnR1").textContent = d1 ? "Run again" : "Start"; $("btnR2").textContent = d2 ? "Run again" : "Start";
+  $("btnR1").querySelector("span").textContent = d1 ? "Run again" : "Start"; $("btnR2").querySelector("span").textContent = d2 ? "Run again" : "Start";
   $("stCal").className = "stp " + (cal ? "done" : "next");
   $("stR1").className = "stp " + (d1 ? "done" : cal ? "next" : "");
   $("stR2").className = "stp " + (d2 ? "done" : cal && d1 ? "next" : "");
@@ -494,17 +495,18 @@ function drawPose(){
   const g = pc.getContext("2d"); g.setTransform(d,0,0,d,0,0);
   const W = r.width, H = r.height, s = Math.min(W/110, H/80), cx = W/2, cy = H/2, z = zone();
   g.clearRect(0,0,W,H);
-  g.strokeStyle = tok("--line"); [15,30].forEach(k => { g.beginPath(); g.arc(cx, cy, k*s, 0, Math.PI*2); g.stroke(); });
+  const Z = "#6db8c9", DOT = "#ffffff", WARN = "#f3a05e";
+  g.strokeStyle = "rgba(255,255,255,.18)"; [15,30].forEach(k => { g.beginPath(); g.arc(cx, cy, k*s, 0, Math.PI*2); g.stroke(); });
   const t = z.tol;
-  g.globalAlpha = base() ? .2 : .08; g.fillStyle = tok("--zone"); g.beginPath(); g.roundRect?.(cx - t.left*s, cy - t.up*s, (t.left+t.right)*s, (t.up+t.down)*s, 14); g.fill();
-  g.globalAlpha = base() ? 1 : .4; g.strokeStyle = tok("--zone"); g.lineWidth = 2; g.stroke(); g.globalAlpha = 1;
-  if (calib){ const p = Math.min(1, (now()-calib.start)/CAL_MS); g.strokeStyle = tok("--ink"); g.lineWidth = 4; g.beginPath(); g.arc(cx, cy, 30, -Math.PI/2, -Math.PI/2 + p*Math.PI*2); g.stroke(); }
+  g.globalAlpha = base() ? .22 : .1; g.fillStyle = Z; g.beginPath(); g.roundRect?.(cx - t.left*s, cy - t.up*s, (t.left+t.right)*s, (t.up+t.down)*s, 14); g.fill();
+  g.globalAlpha = base() ? 1 : .45; g.strokeStyle = Z; g.lineWidth = 2; g.stroke(); g.globalAlpha = 1;
+  if (calib){ const p = Math.min(1, (now()-calib.start)/CAL_MS); g.strokeStyle = DOT; g.lineWidth = 4; g.beginPath(); g.arc(cx, cy, 30, -Math.PI/2, -Math.PI/2 + p*Math.PI*2); g.stroke(); }
   if (pose.face){
     const q = rel(), x = cx + Math.max(-54, Math.min(54, q.dy))*s, y = cy - Math.max(-39, Math.min(39, q.dp))*s;
     trail.push([x,y]); if (trail.length > 25) trail.shift();
-    g.globalAlpha = .2; g.strokeStyle = tok("--ink"); g.lineWidth = 2; g.beginPath(); trail.forEach(([a,b],i) => i ? g.lineTo(a,b) : g.moveTo(a,b)); g.stroke(); g.globalAlpha = 1;
-    g.fillStyle = inZone() === false ? tok("--nudge") : tok("--ink"); g.beginPath(); g.arc(x, y, 7, 0, Math.PI*2); g.fill();
-  } else { trail = []; g.fillStyle = tok("--muted"); g.font = "500 13px " + tok("--sans"); g.textAlign = "center"; g.fillText("Face not visible", cx, cy); }
+    g.globalAlpha = .35; g.strokeStyle = DOT; g.lineWidth = 2; g.beginPath(); trail.forEach(([a,b],i) => i ? g.lineTo(a,b) : g.moveTo(a,b)); g.stroke(); g.globalAlpha = 1;
+    g.fillStyle = inZone() === false ? WARN : DOT; g.beginPath(); g.arc(x, y, 8, 0, Math.PI*2); g.fill();
+  } else { trail = []; g.fillStyle = "rgba(255,255,255,.75)"; g.font = "500 14px " + tok("--sans"); g.textAlign = "center"; g.fillText("Face not visible", cx, cy); }
 }
 
 function loop(t){
