@@ -8,14 +8,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Rubik:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=1794203442">
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <style>
 /* Layout: session code and live status on top (what a teacher glances at), the Round 1 vs Round 2 comparison below. */
 .toprow{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:stretch}
 @media (max-width:900px){.toprow{grid-template-columns:minmax(0,1fr)}}
 .codebox{display:flex;flex-direction:column;gap:14px}
-.code{font:500 46px/1 var(--mono);letter-spacing:.06em;color:var(--zone)}
 .open{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
 .live{display:flex;flex-direction:column}
 .livehead{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:20px}
@@ -41,7 +40,6 @@
 .task table th,.task table td{padding:7px 6px;background:none}
 .spark{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
 .spark svg{width:100%;height:auto;max-height:60px;overflow:visible}
-.code{background:var(--sunk);border:1px dashed var(--line);border-radius:12px;padding:14px 16px;text-align:center}
 .task table th{font-size:11px}
 #chartWrap{padding:18px}
 #charts{display:block;width:100%;height:auto;max-width:100%}
@@ -51,6 +49,20 @@
 .ev i{width:8px;height:8px;border-radius:50%;background:var(--lost);align-self:center}
 .ev.a i{background:var(--nudge)} .ev.r i{background:var(--zone)} .ev.t i{background:var(--alarm)} .ev.f i{background:var(--truth)}
 .ev span{color:var(--muted)}
+.narrow{max-width:980px}
+.start{max-width:520px;margin:24px auto 0;display:flex;flex-direction:column;gap:16px;text-align:left}
+.have summary{cursor:pointer;color:var(--muted);min-height:44px;display:flex;align-items:center;font-size:14px}
+.hero .herohead{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:22px 22px 18px}
+.hero .metrics{border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.herofoot{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;padding:8px 22px}
+.herofoot .code{font:500 20px/1 var(--mono);letter-spacing:.06em;color:var(--zone);margin-right:8px}
+.verdict{display:flex;flex-wrap:wrap;gap:8px;padding:16px 20px 0}
+.verdict span{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:500;background:var(--sunk);border:1px solid var(--line);color:var(--muted)}
+.verdict span.good{color:var(--zone);border-color:color-mix(in srgb,var(--zone) 40%,transparent)}
+.verdict span.bad{color:var(--alarm);border-color:color-mix(in srgb,var(--alarm) 40%,transparent)}
+details.more > summary{cursor:pointer;padding:16px 20px;min-height:44px;color:var(--muted);font-weight:500}
+details.more[open] > summary{border-bottom:1px solid var(--line)}
+details.more .cardhead{border-top:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -59,80 +71,65 @@
   <span class="pill" id="linkPill" role="status"><i></i><span id="linkTxt">No session</span></span>
 </header>
 
-<div class="wrap">
-  <div class="toprow">
-    <section class="card pad codebox" id="codeCard">
-      <div id="noSession" class="codebox">
-        <h2><svg class="i lg" aria-hidden="true"><use href="#i-monitor"/></svg>Start a session</h2>
-        <button class="btn main big" id="btnCreate"><svg class="i " aria-hidden="true"><use href="#i-plus"/></svg>Create session</button>
-        <div class="open">
-          <label class="field">Or open an existing code<input id="openCode" placeholder="FB-2741" maxlength="7" autocomplete="off"></label>
-          <button class="btn" id="btnOpen">Open</button>
-        </div>
-      </div>
-      <div id="hasSession" class="codebox" hidden>
-        <span class="note">Session code</span>
-        <div class="code" id="codeTxt">FB-0000</div>
-        <p class="note">Type this code on the student page to link the two devices.</p>
-        <div style="display:flex;gap:16px;flex-wrap:wrap"><button class="link" id="btnCopy"><svg class="i " aria-hidden="true"><use href="#i-copy"/></svg>Copy student link</button><button class="link" id="btnNew">New session</button></div>
-        <span class="note" id="copyNote"></span>
-      </div>
-    </section>
+<div class="wrap narrow">
+  <section class="card pad start" id="noSession">
+    <h2><svg class="i lg" aria-hidden="true"><use href="#i-monitor"/></svg>Start a session</h2>
+    <p class="note">Create a code, then type it on the student page. Both devices are then linked.</p>
+    <button class="btn main big" id="btnCreate"><svg class="i " aria-hidden="true"><use href="#i-plus"/></svg>Create session</button>
+    <details class="have"><summary>I already have a code</summary>
+      <div class="open"><label class="field">Session code<input id="openCode" placeholder="FB-2741" maxlength="7" autocomplete="off"></label><button class="btn" id="btnOpen">Open</button></div>
+    </details>
+  </section>
 
-    <section class="card live">
-      <div class="livehead">
-        <div class="who" id="who">Waiting for the student page…<small id="whoSub">Nothing is shown until a student device joins with this code.</small></div>
-        <span class="badge demo" id="demoTag" hidden>Demo Mode</span>
-        <span class="state" id="state" role="status" aria-atomic="true"><i></i><span id="stateTxt">Not connected</span></span>
-      </div>
-      <div class="metrics">
-        <div class="metric"><b id="mAl">–</b><span>Alerts</span></div>
-        <div class="metric"><b id="mFa">–</b><span>Wrong alerts</span></div>
-        <div class="metric"><b id="mDet">–</b><span>Real off-task caught</span></div>
-        <div class="metric"><b id="mRec">–</b><span>Avg. return time</span></div>
-      </div>
-    </section>
-  </div>
+  <section class="card hero" id="hasSession" hidden>
+    <div class="herohead">
+      <div class="who" id="who">Waiting for the student page…<small id="whoSub"></small></div>
+      <span class="badge demo" id="demoTag" hidden>Demo Mode</span>
+      <span class="state" id="state" role="status" aria-atomic="true"><i></i><span id="stateTxt">Not connected</span></span>
+    </div>
+    <div class="metrics">
+      <div class="metric"><b id="mAl">–</b><span>Alerts</span></div>
+      <div class="metric"><b id="mFa">–</b><span>Wrong alerts</span></div>
+      <div class="metric"><b id="mDet">–</b><span>Off-task caught</span></div>
+      <div class="metric"><b id="mRec">–</b><span>Return time</span></div>
+    </div>
+    <div class="herofoot">
+      <span class="note">Code</span><span class="code" id="codeTxt">FB-0000</span>
+      <button class="link" id="btnCopy"><svg class="i " aria-hidden="true"><use href="#i-copy"/></svg>Copy student link</button>
+      <button class="link" id="btnNew">New session</button>
+      <span class="note" id="copyNote"></span>
+    </div>
+  </section>
 
   <section class="support" id="support" hidden aria-live="assertive">
     <div><h3><svg class="i lg" aria-hidden="true"><use href="#i-bell"/></svg> Teacher support needed</h3><p id="supportTxt"></p></div>
     <button class="btn" id="btnSupportOk">Dismiss</button>
   </section>
 
-  <section class="card">
+  <section class="card" id="resCard">
     <div class="cardhead">
-      <div><h2><svg class="i lg" aria-hidden="true"><use href="#i-chart"/></svg>Round 1 vs Round 2</h2><p class="note">Success = fewer wrong alerts in Round 2, while real off-task is still caught.</p></div>
-    </div>
-    <div class="cmp" id="cmp"></div>
-  </section>
-
-  <section class="card">
-    <div class="cardhead">
-      <div><h2><svg class="i lg" aria-hidden="true"><use href="#i-chart"/></svg>Poster charts</h2><p class="note">All finished rounds in this browser. Demo rounds are excluded.</p></div>
+      <div><h2><svg class="i lg" aria-hidden="true"><use href="#i-chart"/></svg>Round 1 vs Round 2</h2><p class="note">Success: fewer wrong alerts in Round 2, while real off-task is still caught.</p></div>
       <button class="btn main" id="btnPng"><svg class="i " aria-hidden="true"><use href="#i-download"/></svg>Download charts</button>
     </div>
+    <div class="verdict" id="verdict"></div>
     <div id="chartWrap"><canvas id="charts" width="1500" height="560" aria-label="Round 1 and Round 2 results"></canvas></div>
   </section>
 
-  <section class="card">
-    <div class="cardhead">
-      <div><h2><svg class="i lg" aria-hidden="true"><use href="#i-user"/></svg>Rounds</h2><p class="note">Every round received from student devices.</p></div>
-      <button class="btn" id="btnCsv"><svg class="i " aria-hidden="true"><use href="#i-download"/></svg>Download data (CSV)</button>
-    </div>
+  <details class="card more" id="detCard">
+    <summary>Details: numbers per task, every round, live activity</summary>
+    <div class="cmp" id="cmp"></div>
+    <div class="cardhead"><div><h2>Rounds</h2></div><button class="btn" id="btnCsv"><svg class="i " aria-hidden="true"><use href="#i-download"/></svg>Download data (CSV)</button></div>
     <div class="tablewrap"><table id="tbl"><thead><tr><th>Code</th><th>Student</th><th>Task</th><th>Round</th><th>Alerts</th><th>Wrong alerts</th><th>Off-task caught</th><th>Return (s)</th><th>Tracking lost</th><th></th></tr></thead><tbody></tbody></table></div>
     <div class="empty" id="emptyT">No rounds yet.</div>
-  </section>
-
-  <section class="card">
-    <div class="cardhead"><div><h2><svg class="i lg" aria-hidden="true"><use href="#i-bell"/></svg>Activity</h2><p class="note">Live events from the student page. No video is ever sent.</p></div></div>
+    <div class="cardhead"><div><h2>Activity</h2></div></div>
     <div class="feed" id="feed"></div><div class="empty" id="emptyF">Events appear here during a round.</div>
-  </section>
+  </details>
 
-  <p class="privacy"><svg class="i " aria-hidden="true"><use href="#i-shield"/></svg>Analysis happens on the student’s device. Video is never saved or sent. This page receives only numbers and events under a student code.</p>
+  <p class="privacy"><svg class="i " aria-hidden="true"><use href="#i-shield"/></svg>Video never leaves the student’s device. This page receives only numbers, under a student code.</p>
 </div>
 
 <script type="module">
-import { TASKS, TASK_LABEL, ROUND_LABEL, aggregate, drawCharts, csv, download, store, normCode, newCode, Link } from "./common.js";
+import { TASKS, TASK_LABEL, ROUND_LABEL, aggregate, drawCharts, csv, download, store, normCode, newCode, Link } from "./common.js?v=1794203442";
 const $ = id => document.getElementById(id);
 
 let link = null, live = null, liveAt = 0;
@@ -243,7 +240,17 @@ function renderTable(){
     tb.appendChild(tr);
   });
 }
-function renderAll(){ renderCmp(); renderTable(); drawCharts($("charts"), rows); renderFeed(); }
+function renderVerdict(){
+  const A = aggregate(rows), v = $("verdict"); v.textContent = "";
+  for (const t of TASKS){
+    const r1 = A[t+"_1"], r2 = A[t+"_2"], el = document.createElement("span");
+    if (r1.falsePct == null || r2.falsePct == null){ el.textContent = `${TASK_LABEL[t]}: run both rounds`; }
+    else { const d = Math.round(r1.falsePct - r2.falsePct); el.className = d > 0 ? "good" : d < 0 ? "bad" : "";
+      el.textContent = d > 0 ? `${TASK_LABEL[t]}: wrong alerts ↓ ${d} pts` : d < 0 ? `${TASK_LABEL[t]}: wrong alerts ↑ ${-d} pts` : `${TASK_LABEL[t]}: no change`; }
+    v.appendChild(el);
+  }
+}
+function renderAll(){ renderVerdict(); renderCmp(); renderTable(); drawCharts($("charts"), rows); renderFeed(); }
 
 $("btnPng").onclick = () => { drawCharts($("charts"), rows, true); $("charts").toBlob(b => { if (b) download("focusback_charts.png", b); drawCharts($("charts"), rows); }, "image/png"); };
 $("btnCsv").onclick = () => {
@@ -253,6 +260,7 @@ $("btnCsv").onclick = () => {
 
 const STATE = { on:["On task","on"], off:["Possible off-task","off"], alert:["Private alert sent","alert"], lost:["Tracking lost",""], idle:["Not in a round",""] };
 function ui(){
+  const quiet = !link && rows.length === 0; $("resCard").hidden = quiet; $("detCard").hidden = quiet;
   const lp = $("linkPill"), st = link?.status;
   lp.className = "pill " + (!link ? "" : st === "online" || st === "local" ? "ok" : st === "connecting" ? "warn" : "bad");
   $("linkTxt").textContent = !link ? "No session" : st === "online" ? "Listening on " + link.code : st === "local" ? "Same-browser link · " + link.code : st === "connecting" ? "Connecting…" : "Offline";

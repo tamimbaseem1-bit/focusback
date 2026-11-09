@@ -8,34 +8,31 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Rubik:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=1794203442">
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-/* Layout: setup on the left (connect, volunteer, task, the three steps), camera check on the right.
-   During a round the whole screen becomes the calm student view. */
-.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
-@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
-.col{display:flex;flex-direction:column;gap:18px}
-.connect{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
-.steps{display:flex;flex-direction:column}
-.stp{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
-.stp:last-child{border-bottom:0}
-.stp .num{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:500 14px var(--mono);border:1.5px solid var(--line);background:var(--sunk)}
-.stp.done .num{background:var(--zone);border-color:var(--zone);color:var(--zone-ink)}
-.stp.next .num{background:transparent;border-color:var(--zone);color:var(--zone)}
-.stp > div > b{display:block;font-size:15px}
-.stp > div > span{font-size:13px;color:var(--muted)}
-.camwrap{position:relative;border-radius:12px;overflow:hidden;background:#0b0f1c;aspect-ratio:4/3;max-width:100%}
+/* Layout: one calm column. Task, camera, three-step progress, one primary button.
+   Everything else (volunteer code, dashboard link, smartwatch) waits under "Settings". */
+.solo{max-width:620px;margin:0 auto;padding:4px 16px 48px;display:flex;flex-direction:column;gap:18px}
+.camwrap{position:relative;border-radius:18px;overflow:hidden;aspect-ratio:4/3;max-width:100%;background:radial-gradient(120% 90% at 50% 40%,#18234a,#070c1c);border:1px solid var(--line)}
 .camwrap video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
-.camwrap .msg{position:absolute;left:12px;right:12px;bottom:12px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;color:#dfe6e4;font-size:13px;padding:10px 12px;border-radius:10px;background:rgb(10 20 28 / .72);backdrop-filter:blur(6px)}
-.camwrap .msg .btn{background:var(--zone);color:var(--zone-ink);border:0}
-.camwrap{background:radial-gradient(120% 90% at 50% 40%,#18234a,#070c1c);border:1px solid var(--line)}
+.camwrap .msg{position:absolute;inset:auto 12px 12px 12px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;color:#dfe6e4;font-size:14px;padding:10px 12px;border-radius:12px;background:rgb(7 12 28 / .75);backdrop-filter:blur(6px)}
+.camwrap .tag{position:absolute;top:12px;left:12px}
 #pose{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
 #pose.demo{cursor:crosshair}
-.statusline{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
-.hint{margin:0;font-size:14px;color:var(--muted)}
-
+.progress{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.progress button{width:100%;min-height:44px;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--muted);font-weight:500;font-size:14px;cursor:pointer}
+.progress button .i{display:none}
+.progress .done button{color:var(--zone);border-color:color-mix(in srgb,var(--zone) 40%,transparent)}
+.progress .done button .i{display:inline}
+.progress .now button{color:var(--ink);border-color:var(--zone);background:color-mix(in srgb,var(--zone) 10%,transparent)}
+.progress button:disabled{cursor:not-allowed;opacity:.6}
+.hint{margin:-6px 0 0;font-size:14px;color:var(--muted);text-align:center;min-height:1.6em}
+.more{border-top:1px solid var(--line);padding-top:14px}
+.more summary{cursor:pointer;color:var(--muted);font-weight:500;min-height:44px;display:flex;align-items:center}
+.more .set{display:flex;flex-direction:column;gap:18px;padding-top:8px}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
 /* Student view */
 #sv{position:fixed;inset:0;z-index:20;background:radial-gradient(800px 500px at 50% -10%,var(--lamp),transparent 70%),var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:24px;text-align:center}
 #sv .halo{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 0 var(--nudge);transition:box-shadow .4s ease}
@@ -76,58 +73,48 @@
 </head>
 <body>
 <header class="top">
-  <a class="brand" href="./"><svg class="logo" viewBox="0 0 34 34" aria-hidden="true"><rect x="3" y="7" width="28" height="20" rx="7" fill="none" stroke="#5fe0b7" stroke-width="2.4"/><circle cx="17" cy="17" r="4" fill="#ffb547"/></svg><h1>FocusBack</h1><span>Student page</span></a>
-  <span class="pill" id="linkPill" role="status"><i></i><span id="linkTxt">No dashboard</span></span>
+  <a class="brand" href="./"><svg class="logo" viewBox="0 0 34 34" aria-hidden="true"><rect x="3" y="7" width="28" height="20" rx="7" fill="none" stroke="#5fe0b7" stroke-width="2.4"/><circle cx="17" cy="17" r="4" fill="#ffb547"/></svg><h1>FocusBack</h1><span>Student</span></a>
+  <span class="pill" id="linkPill" role="status" hidden><i></i><span id="linkTxt"></span></span>
   <span class="pill" id="modelPill" role="status"><i></i><span id="modelTxt">Loading face model…</span></span>
 </header>
 
-<div class="wrap">
-  <div class="grid">
-    <div class="col">
-      <section class="card pad col">
-        <h2><svg class="i lg" aria-hidden="true"><use href="#i-link"/></svg>Connect to the dashboard</h2>
-        <div class="connect">
-          <label class="field">Session code<input id="code" placeholder="FB-2741" maxlength="7" autocomplete="off"></label>
-          <button class="btn" id="btnLink"><svg class="i" aria-hidden="true"><use href="#i-link"/></svg><span>Connect</span></button>
-        </div>
-        <p class="note" id="linkNote">Get the code from the Teacher / Parent dashboard. You can also run without one.</p>
-      </section>
+<main class="solo">
+  <div class="seg" role="group" aria-label="Task">
+    <button data-task="reading" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="#i-book"/></svg>Reading</button>
+    <button data-task="writing" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-pen"/></svg>Writing</button>
+    <button data-task="listening" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-ear"/></svg>Listening</button>
+  </div>
 
-      <section class="card pad col">
-        <div class="statusline">
-          <h2><svg class="i lg" aria-hidden="true"><use href="#i-user"/></svg>Test</h2>
-          <label class="field" style="flex-direction:row;align-items:center;gap:8px">Volunteer<input id="pid" value="P01" maxlength="6" autocomplete="off" style="width:84px"></label>
-        </div>
-        <div class="seg" role="group" aria-label="Task">
-          <button data-task="reading" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="#i-book"/></svg>Reading</button>
-          <button data-task="writing" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-pen"/></svg>Writing</button>
-          <button data-task="listening" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-ear"/></svg>Listening</button>
-        </div>
-        <div class="steps">
-          <div class="stp" id="stCal"><span class="num">1</span><div><b>Calibrate</b><span id="calSub">20 seconds, looking at the task as usual</span></div><button class="btn main" id="btnCal"><svg class="i" aria-hidden="true"><use href="#i-target"/></svg><span>Calibrate</span></button></div>
-          <div class="stp" id="stR1"><span class="num">2</span><div><b>Round 1 · no learning</b><span id="r1Sub">About 3 minutes</span></div><button class="btn" id="btnR1"><svg class="i fill" aria-hidden="true"><use href="#i-play"/></svg><span>Start</span></button></div>
-          <div class="stp" id="stR2"><span class="num">3</span><div><b>Round 2 · with learning</b><span id="r2Sub">Starts from the same calibration</span></div><button class="btn" id="btnR2"><svg class="i fill" aria-hidden="true"><use href="#i-play"/></svg><span>Start</span></button></div>
-        </div>
-        <p class="hint" id="hint"></p>
-      </section>
-    </div>
+  <div class="camwrap">
+    <video id="vid" playsinline muted></video>
+    <canvas id="pose" aria-label="Head direction compared with the on-task zone"></canvas>
+    <span class="badge demo tag" id="demoBadge">Demo Mode</span>
+    <div class="msg" id="camNote"><span id="camTxt">Camera is off</span><button class="link" id="btnDemo" style="color:#dfe6e4">Try Demo Mode</button></div>
+  </div>
 
-    <div class="col">
-      <section class="card pad col">
-        <div class="statusline"><h2><svg class="i lg" aria-hidden="true"><use href="#i-camera"/></svg>Camera check</h2><span class="badge demo" id="demoBadge">Demo Mode</span></div>
-        <div class="camwrap">
-          <video id="vid" playsinline muted></video>
-          <canvas id="pose" aria-label="Head direction compared with the on-task zone"></canvas>
-          <div class="msg" id="camNote"><span id="camTxt">Camera is off</span><button class="btn" id="btnCam"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg>Start camera</button></div>
-        </div>
-        <p class="note" id="poseNote">The dot should sit inside the green zone while the volunteer is on task.</p>
-      </section>
-      <section class="card pad watch">
-        <div class="watchrow">
-          <div><h2><svg class="i lg" aria-hidden="true"><use href="#i-watch"/></svg>Smartwatch alerts</h2><p class="note">Send each private alert to the volunteer’s phone, and from there to the paired watch.</p></div>
-          <label class="switch"><input type="checkbox" id="watchOn" aria-label="Send alerts to a smartwatch"><span></span></label>
-        </div>
-        <div id="watchBox" class="watch" hidden>
+  <ol class="progress" aria-label="Progress">
+    <li id="stCal"><button id="chipCal"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Calibrate</button></li>
+    <li id="stR1"><button id="chipR1"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Round 1</button></li>
+    <li id="stR2"><button id="chipR2"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Round 2</button></li>
+  </ol>
+
+  <button class="btn main big wide" id="btnGo"><svg class="i lg" aria-hidden="true"><use href="#i-camera"/></svg><span>Start camera</span></button>
+  <p class="hint" id="hint" role="status"></p>
+
+  <details class="more">
+    <summary>Settings</summary>
+    <div class="set">
+      <label class="field">Volunteer code<input id="pid" value="P01" maxlength="6" autocomplete="off"></label>
+      <div class="row2">
+        <label class="field">Dashboard session code<input id="code" placeholder="FB-2741" maxlength="7" autocomplete="off"></label>
+        <button class="btn" id="btnLink"><span>Connect</span></button>
+      </div>
+      <p class="note" id="linkNote">Optional. Get the code from the Teacher / Parent dashboard.</p>
+      <div class="watchrow">
+        <div><b>Smartwatch alerts</b><p class="note">Send each alert to the volunteer’s phone and paired watch.</p></div>
+        <label class="switch"><input type="checkbox" id="watchOn" aria-label="Send alerts to a smartwatch"><span></span></label>
+      </div>
+      <div id="watchBox" class="watch" hidden>
           <div class="topic">
             <div id="qr" aria-label="QR code with the alert channel"></div>
             <div><span class="note">Alert channel</span><code id="topicTxt"></code>
@@ -139,11 +126,12 @@
             <div><b>iPhone + Apple Watch</b><ol><li>Install the free app <b>ntfy</b> from the App Store.</li><li>Tap +, type the channel name above, Subscribe, allow notifications.</li><li>Lock the iPhone: Apple Watch shows alerts only when the iPhone is locked.</li></ol></div>
           </div>
         </div>
-      </section>
-      <p class="privacy">Video is analysed on this device only. It is never saved or sent. Only numbers and events, under a code like P01, go to the dashboard.</p>
+      
     </div>
-  </div>
-</div>
+  </details>
+  <button id="btnCam" hidden></button>
+  <p class="privacy">Video stays on this device. It is never saved or sent.</p>
+</main>
 
 <div id="sv" hidden>
   <div class="halo"></div>
@@ -162,7 +150,7 @@
 
 <script type="module">
 import { FilesetResolver, FaceLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
-import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link } from "./common.js";
+import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link } from "./common.js?v=1794203442";
 
 const $ = id => document.getElementById(id);
 const now = () => performance.now();
@@ -273,12 +261,12 @@ function sendLive(force){
 function sendResults(){ if (link) link.send("results", { rows: sessions.filter(s => s.code === link.code) }, true); }
 
 // ---------- calibration ----------
-$("btnCal").onclick = () => {
+function calibrate(){
   if (run || calib) return;
   calib = { start: now(), until: now() + CAL_MS, samples: [] };
   speak(task === "reading" ? "انظر إلى كتابك كما تقرأ عادة" : task === "writing" ? "اكتب في دفترك كعادتك" : "انظر إلى المتحدث كما تستمع عادة");
   ui();
-};
+}
 const median = a => { const s = [...a].sort((x,y)=>x-y); return s.length ? s[Math.floor(s.length/2)] : 0; };
 function stepCalib(t){
   if (!calib) return;
@@ -295,8 +283,23 @@ function stepCalib(t){
 }
 
 // ---------- rounds ----------
-$("btnR1").onclick = () => startRound(1);
-$("btnR2").onclick = () => startRound(2);
+let demoChosen = false;
+const doneRound = r => sessions.some(s => s.pid === pid() && s.task === task && s.round === r && s.completed && !s.demo);
+function nextAction(){
+  if (calib) return { label:"Calibrating…", icon:"target", go:null };
+  if (camState !== "on" && !demoChosen) return { label:"Start camera", icon:"camera", go:() => $("btnCam").click() };
+  if (!base()) return { label:"Calibrate · 20 s", icon:"target", go:calibrate };
+  if (!doneRound(1)) return { label:"Start Round 1 · no learning", icon:"play", go:() => startRound(1) };
+  if (!doneRound(2)) return { label:"Start Round 2 · with learning", icon:"play", go:() => startRound(2) };
+  const nxt = ["reading","writing","listening"].find(t => !(sessions.some(s => s.pid === pid() && s.task === t && s.round === 2 && s.completed && !s.demo)));
+  return nxt ? { label:"Next task: " + TASK_LABEL[nxt], icon:"arrow", go:() => { task = nxt; ui(); sendLive(true); } }
+             : { label:"All tasks done · see the dashboard", icon:"check", go:null };
+}
+$("btnGo").onclick = () => { const a = nextAction(); a.go && a.go(); };
+$("chipCal").onclick = () => calibrate();
+$("chipR1").onclick = () => startRound(1);
+$("chipR2").onclick = () => startRound(2);
+$("btnDemo").onclick = () => { demoChosen = true; ui(); };
 function startRound(round){
   if (!base() || run || calib) return;
   const segs = []; for (let c = 0; c < CYCLES; c++) SCRIPTS[task].forEach(s => segs.push({ ...s }));
@@ -459,31 +462,28 @@ window.FB_sim = (dy, dp) => { const b = zone().base; simPose = { y: b.y + dy, p:
 function ui(){
   document.querySelectorAll("[data-task]").forEach(b => { b.setAttribute("aria-pressed", b.dataset.task === task); b.disabled = !!(run || calib); });
   const lp = $("linkPill"), st = link?.status;
-  lp.className = "pill " + (!link ? "" : st === "online" || st === "local" ? "ok" : st === "connecting" ? "warn" : "bad");
-  $("linkTxt").textContent = !link ? "No dashboard" : st === "online" ? "Connected · " + link.code : st === "local" ? "Same-browser link · " + link.code : st === "connecting" ? "Connecting…" : "Offline · data is kept here";
+  lp.hidden = !link;
+  lp.className = "pill " + (st === "online" || st === "local" ? "ok" : st === "connecting" ? "warn" : "bad");
+  $("linkTxt").textContent = !link ? "" : st === "online" || st === "local" ? "Dashboard " + link.code : st === "connecting" ? "Connecting…" : "Dashboard offline";
   $("btnLink").querySelector("span").textContent = link ? "Disconnect" : "Connect"; $("code").disabled = !!link;
-  $("modelPill").className = "pill " + (modelState === "ready" ? "ok" : modelState === "error" ? "bad" : "");
-  $("modelTxt").textContent = modelState === "ready" ? "Face model ready" : modelState === "error" ? "Face model failed · check internet" : "Loading face model…";
-  $("camNote").hidden = !demo(); $("btnCam").hidden = camState === "on";
-  $("camTxt").textContent = camState === "error" ? "Camera blocked. Allow it from the address bar, then reload." : camState === "on" ? "Waiting for the face model…" : "Camera is off · Demo Mode: drag to move the head";
-  $("demoBadge").hidden = !demo(); pc.classList.toggle("demo", camState !== "on");
-  $("poseNote").textContent = demo() ? "Demo Mode: drag on the map to move the head. Demo rounds never count in the results." : "The dot should sit inside the green zone while the volunteer is on task.";
-  const cal = !!base(), done = r => sessions.some(s => s.pid === pid() && s.task === task && s.round === r && s.completed && !s.demo);
-  const d1 = done(1), d2 = done(2);
-  $("btnCal").disabled = !!(run || calib); $("btnCal").querySelector("span").textContent = calib ? "Calibrating…" : cal ? "Recalibrate" : "Calibrate";
-  $("btnCal").className = "btn " + (cal ? "" : "main");
-  $("btnR1").disabled = !cal || !!run || !!calib; $("btnR2").disabled = !cal || !!run || !!calib;
-  $("btnR1").className = "btn " + (cal && !d1 ? "main" : ""); $("btnR2").className = "btn " + (cal && d1 && !d2 ? "main" : "");
-  $("btnR1").querySelector("span").textContent = d1 ? "Run again" : "Start"; $("btnR2").querySelector("span").textContent = d2 ? "Run again" : "Start";
-  $("stCal").className = "stp " + (cal ? "done" : "next");
-  $("stR1").className = "stp " + (d1 ? "done" : cal ? "next" : "");
-  $("stR2").className = "stp " + (d2 ? "done" : cal && d1 ? "next" : "");
-  $("calSub").textContent = cal ? `Done for ${pid()} · ${TASK_LABEL[task]}` : "20 seconds, looking at the task as usual";
-  $("hint").textContent = calib ? `Calibrating… keep looking at the ${task === "listening" ? "speaker or screen" : task === "writing" ? "notebook" : "book"}.`
-    : !cal ? `Seat ${pid()} in front of the camera, then calibrate ${TASK_LABEL[task]}.`
-    : !d1 ? "Next: Round 1. The student screen opens and the volunteer follows the instructions."
-    : !d2 ? "Next: Round 2. It starts from the same calibration as Round 1."
-    : `${TASK_LABEL[task]} is complete. Choose another task, or compare the rounds on the dashboard.`;
+  $("modelPill").hidden = modelState === "ready";
+  $("modelPill").className = "pill " + (modelState === "error" ? "bad" : "warn");
+  $("modelTxt").textContent = modelState === "error" ? "Face model failed · check internet" : "Loading face model…";
+  const showNote = camState !== "on" && !demoChosen || camState === "error" || (camState === "on" && modelState !== "ready");
+  $("camNote").hidden = !showNote; $("btnDemo").hidden = camState === "on";
+  $("camTxt").textContent = camState === "error" ? "Camera blocked. Allow it in the address bar, then reload." : camState === "on" ? "Starting face tracking…" : "Camera is off";
+  $("demoBadge").hidden = !(demo() && (demoChosen || camState === "error")); pc.classList.toggle("demo", camState !== "on");
+  const cal = !!base(), d1 = doneRound(1), d2 = doneRound(2), busy = !!(run || calib);
+  $("stCal").className = cal ? "done" : "now"; $("stR1").className = d1 ? "done" : cal ? "now" : ""; $("stR2").className = d2 ? "done" : cal && d1 ? "now" : "";
+  $("chipCal").disabled = busy || (camState !== "on" && !demoChosen); $("chipR1").disabled = busy || !cal; $("chipR2").disabled = busy || !cal;
+  const a = nextAction(), go = $("btnGo");
+  go.querySelector("span").textContent = a.label; go.querySelector("use").setAttribute("href", "#i-" + a.icon); go.disabled = !a.go;
+  $("hint").textContent = calib ? `Keep looking at the ${task === "listening" ? "speaker or screen" : task === "writing" ? "notebook" : "book"} as usual.`
+    : camState !== "on" && !demoChosen ? "Place the device in front of the volunteer."
+    : !cal ? "The volunteer looks at the task as usual for 20 seconds."
+    : !d1 ? "The student screen opens. The volunteer follows the instructions."
+    : !d2 ? "Same calibration as Round 1. This time the system learns."
+    : `${TASK_LABEL[task]} is complete.`;
 }
 
 // ---------- drawing ----------
