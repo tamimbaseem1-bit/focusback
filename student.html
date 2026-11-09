@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="style.css">
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 /* Layout: setup on the left (connect, volunteer, task, the three steps), camera check on the right.
    During a round the whole screen becomes the calm student view. */
@@ -51,6 +52,24 @@
 #sv .acts .btn{padding:15px 24px;font-size:17px}
 #svStop{position:absolute;top:20px;right:20px}
 #svTag{position:absolute;top:20px;left:20px}
+.watch{display:flex;flex-direction:column;gap:14px}
+.watchrow{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.switch{position:relative;width:44px;height:24px;flex:none}
+.switch input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.switch span{position:absolute;inset:0;border-radius:999px;background:var(--line);transition:background .2s}
+.switch span::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--surface);transition:transform .2s}
+.switch input:checked + span{background:var(--zone)}
+.switch input:checked + span::after{transform:translateX(20px)}
+.switch input:focus-visible + span{outline:2px solid var(--zone);outline-offset:2px}
+.topic{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center}
+#qr{background:#fff;padding:8px;border-radius:10px;line-height:0}
+#qr img,#qr canvas{width:120px;height:120px}
+.topic code{font:600 15px var(--mono);word-break:break-all;display:block;margin:4px 0 8px}
+.how{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.how{grid-template-columns:1fr}}
+.how div{background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13px}
+.how > div > b{display:block;margin-bottom:4px}
+.how ol{margin:0;padding-left:18px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -102,6 +121,24 @@
         </div>
         <canvas id="pose" aria-label="Head direction compared with the on-task zone"></canvas>
         <p class="note" id="poseNote">The dot should sit inside the blue zone while the volunteer is on task.</p>
+      </section>
+      <section class="card pad watch">
+        <div class="watchrow">
+          <div><h2>Smartwatch alerts</h2><p class="note">Send each private alert to the volunteer’s phone, and from there to the paired watch.</p></div>
+          <label class="switch"><input type="checkbox" id="watchOn" aria-label="Send alerts to a smartwatch"><span></span></label>
+        </div>
+        <div id="watchBox" class="watch" hidden>
+          <div class="topic">
+            <div id="qr" aria-label="QR code with the alert channel"></div>
+            <div><span class="note">Alert channel</span><code id="topicTxt"></code>
+              <div style="display:flex;gap:14px;flex-wrap:wrap"><button class="btn" id="btnTest">Send test alert</button><button class="link" id="btnNewTopic">New channel</button></div>
+              <p class="note" id="watchNote" style="margin-top:8px"></p></div>
+          </div>
+          <div class="how">
+            <div><b>Android + Wear OS / Galaxy Watch</b><ol><li>Install the free app <b>ntfy</b> on the phone.</li><li>Tap +, type the channel name above, Subscribe.</li><li>Make sure the watch shows phone notifications.</li></ol></div>
+            <div><b>iPhone + Apple Watch</b><ol><li>Install the free app <b>ntfy</b> from the App Store.</li><li>Tap +, type the channel name above, Subscribe, allow notifications.</li><li>Lock the iPhone: Apple Watch shows alerts only when the iPhone is locked.</li></ol></div>
+          </div>
+        </div>
       </section>
       <p class="privacy">Video is analysed on this device only. It is never saved or sent. Only numbers and events, under a code like P01, go to the dashboard.</p>
     </div>
@@ -335,7 +372,7 @@ function step(t){
     } else {
       if (z === false) run.inSince = null;
       const since = t - run.lastNudgeAt;
-      if (since >= REPEAT_MS && run.nudges === 1){ run.nudges = 2; run.lastNudgeAt = t; run.repeats++; emit("alert_repeat"); flash(); }
+      if (since >= REPEAT_MS && run.nudges === 1){ run.nudges = 2; run.lastNudgeAt = t; run.repeats++; emit("alert_repeat"); flash(); watchAlert(true); }
       else if (since >= REPEAT_MS && run.nudges >= 2 && !run.teacherSent){ run.teacherSent = true; run.teacherSupport++; emit("teacher_support"); }
     }
   }
@@ -344,6 +381,7 @@ function raiseAlert(t){
   run.state = "alert"; run.alertAt = t; run.lastNudgeAt = t; run.nudges = 1; run.inSince = null;
   run.alerts.push({ at: t, buf: run.offBuf.slice() });
   emit("alert", { off_s: +(run.offMs/1000).toFixed(1) });
+  watchAlert(false);
   $("svMsg").textContent = "Quick check: back to your task?";
   $("svSub").textContent = "If you were working, tap “I was focused”.";
   $("svBtns").hidden = false; flash();
@@ -368,6 +406,39 @@ function adapt(buf){
   t.up = grow(t.up, dp); t.down = grow(t.down, -dp); t.right = grow(t.right, dy); t.left = grow(t.left, -dy);
   run.work.thr = Math.min(8, run.work.thr + .5);
 }
+
+// ---------- smartwatch alerts ----------
+// The alert goes to ntfy.sh (a free push service). Its phone app shows it as a normal notification,
+// which Wear OS, Galaxy Watch and Apple Watch mirror to the wrist. Only a short fixed message is sent: no data.
+let watch = store.get("watch", { on:false, topic:"" });
+function newTopic(){ const a = "abcdefghjkmnpqrstuvwxyz23456789"; let s = ""; for (let i = 0; i < 6; i++) s += a[Math.floor(Math.random()*a.length)]; return "focusback-" + s; }
+if (!watch.topic) watch.topic = newTopic();
+function saveWatch(){ store.set("watch", watch); }
+function renderWatch(){
+  $("watchOn").checked = watch.on; $("watchBox").hidden = !watch.on; $("topicTxt").textContent = watch.topic;
+  const q = $("qr"); q.textContent = "";
+  try{ new QRCode(q, { text: "https://ntfy.sh/" + watch.topic, width: 240, height: 240, correctLevel: QRCode.CorrectLevel.M }); }catch{ q.hidden = true; }
+}
+async function pushWatch(title, body, tags){
+  const r = await fetch("https://ntfy.sh/" + watch.topic, { method:"POST", body,
+    headers:{ "Title": title, "Priority": "high", "Tags": tags } });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+}
+function watchAlert(second){
+  if (!watch.on || !run) return;
+  pushWatch("FocusBack", second ? "Second check: back to your task? · عُد إلى مهمتك" : "Quick check: back to your task? · عُد إلى مهمتك", "eyes")
+    .then(() => { $("watchNote").textContent = "Last alert sent to the watch at " + new Date().toLocaleTimeString(); })
+    .catch(() => { $("watchNote").textContent = "Could not reach the alert service. Check the internet connection."; });
+}
+$("watchOn").onchange = () => { watch.on = $("watchOn").checked; saveWatch(); renderWatch(); };
+$("btnNewTopic").onclick = () => { watch.topic = newTopic(); saveWatch(); renderWatch(); $("watchNote").textContent = "New channel. Subscribe to it again in the ntfy app."; };
+$("btnTest").onclick = () => {
+  $("watchNote").textContent = "Sending…";
+  pushWatch("FocusBack test", "Test alert. If your watch buzzed, it is ready. · تنبيه تجريبي", "white_check_mark")
+    .then(() => { $("watchNote").textContent = "Test sent. It should arrive on the phone and watch within a few seconds."; })
+    .catch(() => { $("watchNote").textContent = "Could not reach the alert service. Check the internet connection."; });
+};
+renderWatch();
 
 // ---------- controls ----------
 document.querySelectorAll("[data-task]").forEach(b => b.onclick = () => { if (run || calib) return; task = b.dataset.task; ui(); sendLive(true); });
