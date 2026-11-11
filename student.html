@@ -73,7 +73,7 @@
     <div class="msg" id="camNote"><span id="camTxt">Camera is off</span><button class="link" id="btnDemo" style="color:#dfe6e4">Try Demo Mode</button></div>
   </div>
 
-  <ol class="progress" aria-label="Progress">
+  <ol class="progress" id="progress" aria-label="Progress">
     <li id="stCal"><button id="chipCal"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Calibrate</button></li>
     <li id="stR1"><button id="chipR1"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Round 1</button></li>
     <li id="stR2"><button id="chipR2"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Round 2</button></li>
@@ -85,12 +85,24 @@
   <details class="more" id="more">
     <summary>Settings</summary>
     <div class="set">
-      <label class="field">Volunteer code<input id="pid" value="P01" maxlength="6" autocomplete="off"></label>
+      <div class="field">Mode
+        <div class="seg" role="group" aria-label="Mode">
+          <button data-mode="study" aria-pressed="true">Study · rounds</button>
+          <button data-mode="use" aria-pressed="false">Everyday use</button>
+        </div>
+      </div>
+      <p class="note" id="modeNote"></p>
+      <label class="field"><span id="pidLbl">Volunteer code</span><input id="pid" value="P01" maxlength="6" autocomplete="off"></label>
+      <div id="useBox" hidden>
+        <p class="note" id="learnTxt"></p>
+        <button class="link" id="btnResetLearn">Reset what was learned for this student and task</button> <span class="note" id="resetNote"></span>
+      </div>
       <div class="row2">
         <label class="field">Teacher / Parent code<input id="code" placeholder="FB-2741" maxlength="7" autocomplete="off"></label>
         <button class="btn" id="btnLink"><span>Connect</span></button>
       </div>
       <p class="note" id="linkNote">Optional. Get the code from the Teacher / Parent dashboard.</p>
+      <div id="studyBox" class="set" style="padding:0">
       <div class="field">Study phase
         <div class="seg" role="group" aria-label="Study phase">
           <button data-phase="pilot" aria-pressed="true">Pilot</button>
@@ -99,6 +111,7 @@
       </div>
       <p class="note" id="phaseNote">Pilot rounds are kept apart from the final results. Switch to Final study before the first real participant.</p>
       <div><button class="link" id="btnClearPilot">Clear pilot data on this device</button> <span class="note" id="clearNote"></span></div>
+      </div>
     </div>
   </details>
   <button id="btnCam" hidden></button>
@@ -120,7 +133,7 @@
 </div>
 
 <script type="module">
-import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link } from "./common.js?v=1794294000";
+import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link } from "./common.js?v=1794297000";
 
 const $ = id => document.getElementById(id);
 const now = () => performance.now();
@@ -144,7 +157,13 @@ const VERSION = "2026-11-11";
 let task = "reading";
 let calibs = store.get("calibs", {});            // calibs[pid][task] = {p, y}
 let sessions = store.get("sessions", []);
-let phase = store.get("phase", "pilot");          // "pilot" or "final": every round is tagged, results use one phase
+let phase = store.get("phase", "pilot");
+// "study": scripted Round 1 / Round 2, every round starts fresh (fair comparison).
+// "use": everyday use. The student code, calibration and what was learned are kept on this device,
+// so the next session starts where the last one stopped: no calibration, no rounds.
+let mode = store.get("mode", "study");
+let learned = store.get("learned", {});         // learned[pid][task] = {up, down, left, right}
+const USE_TEXT = { reading: "اقرأ في كتابك", writing: "اكتب في دفترك", listening: "استمع إلى المتحدث" };          // "pilot" or "final": every round is tagged, results use one phase
 let pose = { p:0, y:0, face:true }, simPose = { p:0, y:0 };
 let camState = "off", modelState = "loading", landmarker = null;
 let calib = null, run = null, link = null, trail = [];
@@ -198,7 +217,9 @@ function sense(t){
   } else if (camState === "on") pose = { ...pose, face:false };
   else pose = { ...simPose, face:true };
 }
-function zone(){ return run ? run.work : { base: base() || {p:0,y:0}, tol: TASK_TOL[task] }; }
+const lkey = () => (demo() ? "demo:" : "") + pid();   // Demo Mode keeps its own memory, so it never changes a real student's zone
+const startTol = () => mode === "use" ? (learned[lkey()]?.[task] || TASK_TOL[task]) : TASK_TOL[task];
+function zone(){ return run ? run.work : { base: base() || {p:0,y:0}, tol: startTol() }; }
 function rel(){ const b = zone().base; return { dp: pose.p - b.p, dy: pose.y - b.y }; }
 function inZone(){
   if (!pose.face) return null;
@@ -249,7 +270,7 @@ function sendLive(force){
   if (!force && st === lastState && t - lastLive < 1000) return;
   lastState = st; lastLive = t;
   const s = run ? score(run.episodes.concat(run.open ? [[run.open.s, t, run.open.lost]] : []), run.alerts) : null;
-  link.send("live", { pid: pid(), task, state: st, running: !!run, round: run?.round ?? null, demo: run ? run.demo : demo(),
+  link.send("live", { pid: pid(), task, mode, focused: run?.focused ?? 0, state: st, running: !!run, round: run?.round ?? null, demo: run ? run.demo : demo(),
     step: run ? run.i + 1 : 0, steps: run ? run.segs.length : 0,
     alerts: run?.alerts.length ?? 0, falseAlerts: s?.falseAlerts ?? 0, detected: s?.detected ?? 0, episodes: s?.episodes ?? 0,
     recov: run && run.recov.length ? run.recov.reduce((a,b)=>a+b,0)/run.recov.length/1000 : null,
@@ -289,6 +310,7 @@ function nextAction(){
   if (calib) return { label:"Calibrating…", icon:"target", go:null };
   if (camState !== "on" && !demoChosen) return { label:"Start camera", icon:"camera", go:() => $("btnCam").click() };
   if (!base()) return { label:"Calibrate · 20 s", icon:"target", go:calibrate };
+  if (mode === "use") return { label:"Start " + TASK_LABEL[task], icon:"play", go:startUse };
   if (!doneRound(1)) return { label:"Start Round 1 · no learning", icon:"play", go:() => startRound(1) };
   if (!doneRound(2)) return { label:"Start Round 2 · with learning", icon:"play", go:() => startRound(2) };
   const nxt = ["reading","writing","listening"].find(t => !(doneFor(t, 2)));
@@ -315,6 +337,26 @@ function startRound(round){
   emit("round_start", { steps: segs.length });
   nextSeg(); ui();
 }
+// Everyday use: one open-ended step, learning always on, starting from what this student's zone already is.
+function startUse(){
+  if (!base() || run || calib) return;
+  run = { round: "use", task, pid: pid(), demo: demo(), phase: null, start: now(), startedAt: new Date().toISOString(),
+    work: { base: { ...base() }, tol: { ...startTol() } }, poses: {}, lastPoseAt: 0,
+    segs: [{ k: "use", d: Infinity, s: USE_TEXT[task] }], i: -1, segStart: 0, state: "monitor", offMs: 0, offBuf: [], cooldownUntil: 0,
+    alertAt: 0, lastNudgeAt: 0, nudges: 0, inSince: null, teacherSent: false,
+    alerts: [], repeats: 0, teacherSupport: 0, focused: 0, recov: [], episodes: [], open: null,
+    lostSince: null, lostLogged: false, lostCount: 0, lostMs: 0, lastT: now() };
+  $("sv").hidden = false; $("svTag").hidden = !run.demo; hideAlert();
+  emit("session_start"); nextSeg(); ui();
+}
+function endUse(){
+  if (!run) return;
+  emit("session_end", { alerts: run.alerts.length, focused: run.focused, zone: { ...run.work.tol } });
+  run = null; sendLive(true);
+  $("svMsg").textContent = "Session ended. Well done!"; $("svSub").textContent = ""; $("svBtns").hidden = true;
+  setTimeout(() => { if (!run){ $("sv").hidden = true; hideAlert(); } }, 2000);
+  ui();
+}
 function nextSeg(){
   const t = now();
   if (run.open){ run.episodes.push([run.open.s, t, run.open.lost]); run.open = null; }
@@ -333,6 +375,7 @@ function spread(list){
 }
 function endRound(finished){
   if (!run) return;
+  if (run.round === "use") return endUse();   // everyday sessions never enter the study results
   const t = now();
   if (run.open){ run.episodes.push([run.open.s, t, run.open.lost]); run.open = null; }
   const s = score(run.episodes, run.alerts), n = run.alerts.length;
@@ -408,8 +451,10 @@ $("btnFocused").onclick = () => {
   if (run?.state !== "alert") return;
   run.focused++; const a = run.alerts[run.alerts.length - 1]; a.focused = true;
   const before = { ...run.work.tol };
-  if (run.round === 2) adapt(a.buf);
-  emit("i_was_focused", { learned: run.round === 2, before, after: { ...run.work.tol } });
+  const learns = run.round === 2 || run.round === "use";
+  if (learns) adapt(a.buf);
+  if (run.round === "use"){ (learned[(run.demo ? "demo:" : "") + run.pid] ??= {})[run.task] = { ...run.work.tol }; store.set("learned", learned); }
+  emit("i_was_focused", { learned: learns, before, after: { ...run.work.tol } });
   run.state = "monitor"; run.offMs = 0; run.offBuf = []; run.cooldownUntil = now() + COOLDOWN_MS; run.nudges = 0; run.teacherSent = false;
   hideAlert();
 };
@@ -420,6 +465,14 @@ function adapt(buf){
   const grow = (cur, need) => need > cur ? Math.min(LEARN.CAP, cur + LEARN.STEP, need + LEARN.MARGIN) : cur;
   t.up = grow(t.up, dp); t.down = grow(t.down, -dp); t.right = grow(t.right, dy); t.left = grow(t.left, -dy);
 }
+
+// ---------- mode ----------
+document.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { if (run || calib) return; mode = b.dataset.mode; store.set("mode", mode); ui(); sendLive(true); });
+$("btnResetLearn").onclick = () => {
+  if (learned[lkey()]?.[task]){ delete learned[lkey()][task]; store.set("learned", learned); $("resetNote").textContent = "Back to the default zone."; }
+  else $("resetNote").textContent = "Nothing learned yet.";
+  ui();
+};
 
 // ---------- study phase ----------
 function setPhase(p){ phase = p; store.set("phase", p); ui(); sendLive(true); }
@@ -435,7 +488,8 @@ $("btnClearPilot").onclick = () => {
 
 // ---------- controls ----------
 document.querySelectorAll("[data-task]").forEach(b => b.onclick = () => { if (run || calib) return; task = b.dataset.task; ui(); sendLive(true); });
-$("pid").onchange = () => { ui(); sendLive(true); };
+$("pid").value = store.get("pid", "P01");
+$("pid").onchange = () => { $("pid").value = pid(); store.set("pid", pid()); ui(); sendLive(true); };
 document.addEventListener("keydown", e => {
   if (e.target.tagName === "INPUT" || e.repeat || !run) return;
   if (e.key.toLowerCase() === "f") $("btnFocused").click();
@@ -452,6 +506,16 @@ window.FB_sim = (dy, dp) => { const b = zone().base; simPose = { y: b.y + dy, p:
 // ---------- ui ----------
 function ui(){
   document.querySelectorAll("[data-task]").forEach(b => { b.setAttribute("aria-pressed", b.dataset.task === task); b.disabled = !!(run || calib); });
+  document.querySelectorAll("[data-mode]").forEach(b => { b.setAttribute("aria-pressed", b.dataset.mode === mode); b.disabled = !!(run || calib); });
+  const use = mode === "use";
+  $("studyBox").hidden = use; $("useBox").hidden = !use; $("progress").hidden = use;
+  $("pidLbl").textContent = use ? "Student code" : "Volunteer code";
+  $("modeNote").textContent = use ? "Remembers this student on this device: calibrate once per task, then just press Start. Learning is always on and kept for next time. Not counted in the study results."
+                                  : "Scripted Round 1 and Round 2 for the study. Every round starts from the default zone.";
+  const L = learned[lkey()]?.[task], T = TASK_TOL[task];
+  $("learnTxt").textContent = L ? `${pid()} · ${TASK_LABEL[task]}: learned zone up ${L.up}°, down ${L.down}°, left ${L.left}°, right ${L.right}° (default ${T.up}/${T.down}/${T.left}/${T.right}).`
+                                : `${pid()} · ${TASK_LABEL[task]}: default zone. It widens when the student taps “I was focused”.`;
+  $("svBar").hidden = run?.round === "use"; $("svStop").textContent = run?.round === "use" ? "End session" : "Stop round";
   document.querySelectorAll("[data-phase]").forEach(b => { b.setAttribute("aria-pressed", b.dataset.phase === phase); b.disabled = !!(run || calib); });
   const lp = $("linkPill"), st = link?.status;
   // Green only when the dashboard itself has answered in the last 10 seconds.
@@ -476,6 +540,14 @@ function ui(){
   $("chipCal").disabled = busy || (camState !== "on" && !demoChosen); $("chipR1").disabled = busy || !cal; $("chipR2").disabled = busy || !cal;
   const a = nextAction(), go = $("btnGo");
   go.querySelector("span").textContent = a.label; go.querySelector("use").setAttribute("href", "#i-" + a.icon); go.disabled = !a.go;
+  if (use){
+    $("hint").textContent = calib ? `Keep looking at the ${task === "listening" ? "speaker or screen" : task === "writing" ? "notebook" : "book"} as usual.`
+      : camState !== "on" && !demoChosen ? "Place the device in front of the student."
+      : !cal ? "First time for this task: look at it as usual for 20 seconds. Only once."
+      : (L ? "Starts from what was learned last time." : "Ready.") + " ";
+    const rc = $("hint"); if (cal && !calib && !run){ const b = document.createElement("button"); b.className = "link"; b.textContent = "Recalibrate"; b.onclick = calibrate; rc.appendChild(b); }
+    return;
+  }
   $("hint").textContent = calib ? `Keep looking at the ${task === "listening" ? "speaker or screen" : task === "writing" ? "notebook" : "book"} as usual.`
     : camState !== "on" && !demoChosen ? "Place the device in front of the volunteer."
     : !cal ? "The volunteer looks at the task as usual for 20 seconds."

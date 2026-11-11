@@ -141,7 +141,7 @@ details.more .cardhead{border-top:1px solid var(--line)}
 </div>
 
 <script type="module">
-import { TASKS, TASK_LABEL, ROUND_LABEL, aggregate, counts, phaseOf, zoneEvidence, drawCharts, csv, download, store, normCode, newCode, Link } from "./common.js?v=1794294000";
+import { TASKS, TASK_LABEL, ROUND_LABEL, aggregate, counts, phaseOf, zoneEvidence, drawCharts, csv, download, store, normCode, newCode, Link } from "./common.js?v=1794297000";
 const $ = id => document.getElementById(id);
 
 let link = null, live = null, liveAt = 0;
@@ -184,7 +184,7 @@ function onMsg(topic, msg){
   else if (topic === "event"){
     if (msg.type === "round_end" && msg.row) mergeRows([msg.row]);
     if (msg.type === "teacher_support"){ $("supportTxt").textContent = `${msg.pid} did not return to ${TASK_LABEL[msg.task] || "the task"} after two private alerts.`; $("support").hidden = false; }
-    if (["alert","alert_repeat","returned","i_was_focused","teacher_support","tracking_lost","tracking_restored","round_start","round_end","calibrated"].includes(msg.type)){
+    if (["alert","alert_repeat","returned","i_was_focused","teacher_support","tracking_lost","tracking_restored","round_start","round_end","session_start","session_end","calibrated"].includes(msg.type)){
       const e = { ts: msg.ts || Date.now(), code: link?.code, pid: msg.pid, task: msg.task, round: msg.round, demo: msg.demo, type: msg.type,
         recovery_s: msg.recovery_s, lost_s: msg.lost_s, learned: msg.learned };
       events.push(e); if (events.length > 2000) events = events.slice(-2000); store.set("dash_events", events); renderFeed();
@@ -209,6 +209,7 @@ const LBL = {
   tracking_lost: () => ["Tracking lost", "not counted as off-task"], tracking_restored: e => ["Tracking restored", e.lost_s != null ? `after ${e.lost_s}s` : ""],
   round_start: e => [`${ROUND_LABEL[e.round] || "Round"} started`, TASK_LABEL[e.task] || ""], round_end: e => [`${ROUND_LABEL[e.round] || "Round"} finished`, TASK_LABEL[e.task] || ""],
   calibrated: e => ["Calibrated", TASK_LABEL[e.task] || ""],
+  session_start: e => ["Session started", (TASK_LABEL[e.task] || "") + " · everyday use"], session_end: e => ["Session ended", TASK_LABEL[e.task] || ""],
 };
 const CLS = { alert:"a", alert_repeat:"a", returned:"r", teacher_support:"t", i_was_focused:"f" };
 function renderFeed(){
@@ -321,13 +322,18 @@ function ui(){
   else if (!live){ $("who").firstChild.textContent = "Waiting for the student page…"; $("whoSub").textContent = `Enter ${link.code} on the student device.`; }
   else {
     $("who").firstChild.textContent = `${live.pid} · ${TASK_LABEL[live.task] || live.task}`;
-    $("whoSub").textContent = live.running ? `${ROUND_LABEL[live.round]} · step ${live.step} of ${live.steps}` : "Between rounds";
+    $("whoSub").textContent = live.mode === "use" ? (live.running ? "Everyday use · learning on" : "Everyday use · not in a session")
+      : live.running ? `${ROUND_LABEL[live.round]} · step ${live.step} of ${live.steps}` : "Between rounds";
   }
   $("demoTag").hidden = !(fresh && live.demo);
   const [txt, cls] = !link ? ["No session",""] : !fresh ? ["Student not connected",""] : STATE[live.state] || STATE.idle;
   $("state").className = "state " + cls; $("stateTxt").textContent = txt;
   const has = fresh && live.running;
   $("mAl").textContent = has ? live.alerts : "–";
+  // Everyday use has no script, so a wrong alert is one the student marked “I was focused”; off-task caught is unknown.
+  const useMode = live?.mode === "use";
+  $("mFa").parentElement.querySelector("span").textContent = useMode ? "Marked “I was focused”" : "Wrong alerts";
+  if (useMode){ $("mFa").textContent = has ? String(live.focused ?? 0) : "–"; $("mDet").textContent = "–"; $("mRec").textContent = has && live.recov != null ? live.recov.toFixed(1) + "s" : "–"; return; }
   $("mFa").textContent = has ? `${live.falseAlerts}${live.alerts ? " · " + Math.round(100*live.falseAlerts/live.alerts) + "%" : ""}` : "–";
   $("mDet").textContent = has && live.episodes ? `${live.detected}/${live.episodes}` : "–";
   $("mRec").textContent = has && live.recov != null ? live.recov.toFixed(1) + "s" : "–";

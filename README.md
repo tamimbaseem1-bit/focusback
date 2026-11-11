@@ -11,6 +11,11 @@ Live: https://tamimbaseem1-bit.github.io/focusback/
 
 The pages are linked by the session code. Only numbers and events travel, through a public MQTT broker (HiveMQ) or BroadcastChannel when both pages are open in one browser. Video is analysed on the student device (MediaPipe Face Landmarker) and is never saved or sent.
 
+## Two modes (Settings on the student page)
+
+- **Study · rounds**: the scripted experiment below. Every round starts fresh from the default zone, so Round 1 and Round 2 can be compared fairly.
+- **Everyday use**: what a student would use after the competition. The student code and the calibration are remembered on the device (calibrate once per task), there are no rounds, learning is always on, and what was learned is kept for the next session. These sessions never enter the study results. Demo Mode keeps its own memory, separate from real students.
+
 ## Method
 
 Choose task → Calibrate → Round 1 (no learning) → Round 2 (with learning) → Compare.
