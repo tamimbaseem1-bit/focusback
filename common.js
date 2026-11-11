@@ -40,15 +40,34 @@ export function score(episodes, alerts) {
   return { episodes: usable.length, excluded: episodes.length - usable.length, detected, falseAlerts };
 }
 
+// A round counts in the results only if it was finished, was not Demo Mode, and had at least one usable off-task episode.
+export const counts = s => !!s && s.completed === true && !s.demo && s.episodes > 0;
+export const phaseOf = s => s.phase || "pilot";   // rounds saved before phases existed count as pilot
+
 export function aggregate(sessions) {
   const out = {};
   for (const t of TASKS) for (const r of [1, 2]) {
-    const rows = sessions.filter(s => s.task === t && s.round === r && !s.demo && s.episodes > 0);
+    const rows = sessions.filter(s => s.task === t && s.round === r && counts(s));
     const alerts = rows.reduce((x, s) => x + s.alerts, 0), fa = rows.reduce((x, s) => x + s.falseAlerts, 0);
     const ep = rows.reduce((x, s) => x + s.episodes, 0), det = rows.reduce((x, s) => x + s.detected, 0);
     const rs = rows.reduce((x, s) => x + (s.recovSumS || 0), 0), rn = rows.reduce((x, s) => x + (s.recovN || 0), 0);
     out[t + "_" + r] = { n: rows.length, falsePct: alerts ? 100 * fa / alerts : (rows.length ? 0 : null),
       detectPct: ep ? 100 * det / ep : null, recov: rn ? rs / rn : null };
+  }
+  return out;
+}
+
+// Task zones from the data: for each task and side, the median over rounds of the 95th-percentile head angle
+// during on-task steps ("on") and natural-movement steps ("test").
+export function zoneEvidence(sessions) {
+  const out = {}, med = a => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : null; };
+  for (const t of TASKS) {
+    const rows = sessions.filter(s => s.task === t && s.completed === true && !s.demo && s.spread);
+    out[t] = { n: rows.length };
+    for (const k of ["on", "test"]) {
+      const list = rows.map(r => r.spread[k]).filter(Boolean);
+      out[t][k] = list.length ? Object.fromEntries(["up", "down", "left", "right"].map(d => [d, med(list.map(x => x[d]))])) : null;
+    }
   }
   return out;
 }
@@ -63,7 +82,7 @@ export function drawCharts(c, sessions, forExport) {
   g.clearRect(0, 0, W, H); if (col.bg){ g.fillStyle = col.bg; g.fillRect(0, 0, W, H); }
   const A = aggregate(sessions);
   const panels = [
-    { title: "False alert rate", sub: "main result · lower is better", key: "falsePct", unit: "%", max: 100 },
+    { title: "Wrong alerts (%)", sub: "% of alerts that were unnecessary · lower is better", key: "falsePct", unit: "%", max: 100 },
     { title: "Real off-task detected", sub: "should stay high", key: "detectPct", unit: "%", max: 100 },
     { title: "Attention recovery time", sub: "seconds from alert to return", key: "recov", unit: "s", max: null },
   ];
@@ -71,7 +90,7 @@ export function drawCharts(c, sessions, forExport) {
   panels.forEach((p, i) => {
     const x0 = i * pw + 70, w = pw - 100;
     g.textAlign = "left"; g.fillStyle = col.ink; g.font = "600 28px 'Readex Pro', sans-serif"; g.fillText(p.title, x0, 52);
-    g.fillStyle = col.muted; g.font = "400 20px 'Readex Pro', sans-serif"; g.fillText(p.sub, x0, 82);
+    g.fillStyle = col.muted; g.font = "400 16px 'Readex Pro', sans-serif"; g.fillText(p.sub, x0, 82);
     const vals = TASKS.flatMap(t => [A[t + "_1"][p.key], A[t + "_2"][p.key]]).filter(v => v != null);
     const max = p.max ?? Math.max(5, Math.ceil((Math.max(0, ...vals) * 1.25) / 5) * 5);
     const y = v => bottom - (v / max) * (bottom - top);
@@ -100,7 +119,7 @@ export function drawCharts(c, sessions, forExport) {
   g.fillStyle = col.r1; g.fillRect(40, H - 34, 18, 18); g.fillStyle = col.ink; g.fillText("Round 1 · no learning", 66, H - 19);
   g.fillStyle = col.r2; g.fillRect(300, H - 34, 18, 18); g.fillStyle = col.ink; g.fillText("Round 2 · with learning", 326, H - 19);
   const n = Object.values(A).reduce((x, a) => x + a.n, 0);
-  g.fillStyle = col.muted; g.textAlign = "right"; g.fillText(`${n} round${n === 1 ? "" : "s"} · demo rounds excluded`, W - 40, H - 19);
+  g.fillStyle = col.muted; g.textAlign = "right"; g.fillText(`${n} finished round${n === 1 ? "" : "s"} · demo and stopped rounds excluded`, W - 40, H - 19);
 }
 
 // ---------- files ----------
@@ -142,7 +161,7 @@ export class Link {
     this._start();
   }
   async _start() {
-    // Load the messaging library from a second CDN if the first one was blocked.
+    // The messaging library is served from this site (vendor/); fall back to a CDN if that copy is missing.
     if (!window.mqtt) {
       await new Promise(res => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"; sc.onload = res; sc.onerror = res; document.head.appendChild(sc); });
     }

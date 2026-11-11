@@ -9,11 +9,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&family=Readex+Pro:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="style.css?v=1794208572">
-<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="vendor/mqtt.min.js"></script>
 <style>
 /* Layout: one calm column. Task, camera, three-step progress, one primary button.
-   Everything else (volunteer code, dashboard link, smartwatch) waits under "Settings". */
+   Everything else (volunteer code, study phase, dashboard link) waits under "Settings". */
 .solo{max-width:620px;margin:0 auto;padding:4px 16px 48px;display:flex;flex-direction:column;gap:18px}
 .camwrap{position:relative;border-radius:18px;overflow:hidden;aspect-ratio:4/3;max-width:100%;background:radial-gradient(120% 90% at 50% 40%,#0d3d26,#03170c);border:1px solid var(--line);box-shadow:var(--shadow)}
 .camwrap video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
@@ -51,24 +50,6 @@
 #sv .acts .btn{padding:16px 26px;font-size:18px;min-height:60px;border-radius:14px}
 #svStop{position:absolute;top:20px;right:20px}
 #svTag{position:absolute;top:20px;left:20px}
-.watch{display:flex;flex-direction:column;gap:14px}
-.watchrow{display:flex;justify-content:space-between;align-items:center;gap:12px}
-.switch{position:relative;width:44px;height:24px;flex:none}
-.switch input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
-.switch span{position:absolute;inset:0;border-radius:999px;background:var(--line);transition:background .2s}
-.switch span::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--surface);transition:transform .2s}
-.switch input:checked + span{background:var(--zone)}
-.switch input:checked + span::after{transform:translateX(20px)}
-.switch input:focus-visible + span{outline:2px solid var(--zone);outline-offset:2px}
-.topic{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center}
-#qr{background:#fff;padding:8px;border-radius:10px;line-height:0}
-#qr img,#qr canvas{width:120px;height:120px}
-.topic code{font:600 15px var(--mono);word-break:break-all;display:block;margin:4px 0 8px}
-.how{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media (max-width:560px){.how{grid-template-columns:1fr}}
-.how div{background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13px}
-.how > div > b{display:block;margin-bottom:4px}
-.how ol{margin:0;padding-left:18px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -110,23 +91,14 @@
         <button class="btn" id="btnLink"><span>Connect</span></button>
       </div>
       <p class="note" id="linkNote">Optional. Get the code from the Teacher / Parent dashboard.</p>
-      <div class="watchrow">
-        <div><b>Smartwatch alerts</b><p class="note">Send each alert to the volunteer’s phone and paired watch.</p></div>
-        <label class="switch"><input type="checkbox" id="watchOn" aria-label="Send alerts to a smartwatch"><span></span></label>
-      </div>
-      <div id="watchBox" class="watch" hidden>
-          <div class="topic">
-            <div id="qr" aria-label="QR code with the alert channel"></div>
-            <div><span class="note">Alert channel</span><code id="topicTxt"></code>
-              <div style="display:flex;gap:14px;flex-wrap:wrap"><button class="btn" id="btnTest"><svg class="i" aria-hidden="true"><use href="#i-bell"/></svg>Send test alert</button><button class="link" id="btnNewTopic">New channel</button></div>
-              <p class="note" id="watchNote" style="margin-top:8px"></p></div>
-          </div>
-          <div class="how">
-            <div><b>Android + Wear OS / Galaxy Watch</b><ol><li>Install the free app <b>ntfy</b> on the phone.</li><li>Tap +, type the channel name above, Subscribe.</li><li>Make sure the watch shows phone notifications.</li></ol></div>
-            <div><b>iPhone + Apple Watch</b><ol><li>Install the free app <b>ntfy</b> from the App Store.</li><li>Tap +, type the channel name above, Subscribe, allow notifications.</li><li>Lock the iPhone: Apple Watch shows alerts only when the iPhone is locked.</li></ol></div>
-          </div>
+      <div class="field">Study phase
+        <div class="seg" role="group" aria-label="Study phase">
+          <button data-phase="pilot" aria-pressed="true">Pilot</button>
+          <button data-phase="final" aria-pressed="false">Final study</button>
         </div>
-      
+      </div>
+      <p class="note" id="phaseNote">Pilot rounds are kept apart from the final results. Switch to Final study before the first real participant.</p>
+      <div><button class="link" id="btnClearPilot">Clear pilot data on this device</button> <span class="note" id="clearNote"></span></div>
     </div>
   </details>
   <button id="btnCam" hidden></button>
@@ -143,25 +115,36 @@
   <p id="svMsg">You’re on track.</p>
   <p id="svSub">Only you can see this screen.</p>
   <div class="acts" id="svBtns" hidden>
-    <button class="btn main" id="btnBack"><svg class="i lg" aria-hidden="true"><use href="#i-arrow"/></svg>I’m back</button>
-    <button class="btn" id="btnFocused"><svg class="i lg" aria-hidden="true"><use href="#i-check"/></svg>I was focused</button>
+    <button class="btn main" id="btnFocused"><svg class="i lg" aria-hidden="true"><use href="#i-check"/></svg>I was focused</button>
   </div>
 </div>
 
 <script type="module">
-import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link } from "./common.js?v=1794208572";
+import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link } from "./common.js?v=1794294000";
 
 const $ = id => document.getElementById(id);
 const now = () => performance.now();
 
 // ---------- settings ----------
 const CAL_MS = 20000, COOLDOWN_MS = 8000, REPEAT_MS = 8000, LOST_EVENT_MS = 1000;
-const DEF_TOL = { up:15, down:15, left:20, right:20 }, DEF_THR = 5;
+// The wait before an alert is fixed in both rounds, so Round 2 can only change one thing: the zone.
+const ALERT_S = 5;
+// Default zone per task (degrees from that task's calibration centre). Starting values: update them from the pilot data.
+// Reading: more room downward and to the sides · Writing: most room downward and sideways · Listening: narrow, facing the speaker.
+const TASK_TOL = {
+  reading:   { up:12, down:20, left:22, right:22 },
+  writing:   { up:12, down:22, left:25, right:25 },
+  listening: { up:12, down:12, left:15, right:15 },
+};
+// Round 2 learning: each "I was focused" widens only the side the head moved to, by at most STEP, never beyond CAP.
+const LEARN = { STEP:5, CAP:30, MARGIN:3 };
+const VERSION = "2026-11-11";
 
 // ---------- state ----------
 let task = "reading";
 let calibs = store.get("calibs", {});            // calibs[pid][task] = {p, y}
 let sessions = store.get("sessions", []);
+let phase = store.get("phase", "pilot");          // "pilot" or "final": every round is tagged, results use one phase
 let pose = { p:0, y:0, face:true }, simPose = { p:0, y:0 };
 let camState = "off", modelState = "loading", landmarker = null;
 let calib = null, run = null, link = null, trail = [];
@@ -170,16 +153,27 @@ const base = () => calibs[pid()]?.[task] || null;
 const demo = () => !(camState === "on" && modelState === "ready");
 
 // ---------- model + camera ----------
+// Served from this site first (vendor/), so a slow or blocked CDN on demo day does not stop the camera.
+// Each piece falls back to its public CDN if the local copy is missing.
+const MP_CDN = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+const MODEL_LOCAL = "vendor/mediapipe/face_landmarker.task";
+const MODEL_CDN = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 const modelReady = (async () => {
   try{
-    // Loaded on demand, so the page still works (Demo Mode, dashboard link) if this CDN is unreachable.
-    const { FilesetResolver, FaceLandmarker } = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs");
-    const files = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
-    const opts = d => ({ baseOptions:{ modelAssetPath:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task", delegate:d },
+    let mp, wasm = "vendor/mediapipe/wasm";
+    try{ mp = await import("./vendor/mediapipe/vision_bundle.mjs"); }
+    catch{ mp = await import(MP_CDN + "/vision_bundle.mjs"); wasm = MP_CDN + "/wasm"; }
+    const { FilesetResolver, FaceLandmarker } = mp;
+    let files;
+    try{ if (!(await fetch(wasm + "/vision_wasm_internal.wasm", { method:"HEAD" })).ok) throw 0; files = await FilesetResolver.forVisionTasks(wasm); }
+    catch{ files = await FilesetResolver.forVisionTasks(MP_CDN + "/wasm"); }
+    let model = MODEL_CDN;
+    try{ if ((await fetch(MODEL_LOCAL, { method:"HEAD" })).ok) model = MODEL_LOCAL; }catch{}
+    const opts = d => ({ baseOptions:{ modelAssetPath: model, delegate:d },
       runningMode:"VIDEO", numFaces:1, outputFacialTransformationMatrixes:true });
     try{ landmarker = await FaceLandmarker.createFromOptions(files, opts("GPU")); }
     catch{ landmarker = await FaceLandmarker.createFromOptions(files, opts("CPU")); }
-    modelState = "ready";
+    modelState = "ready"; window.FB_model = model;
   }catch(e){ modelState = "error"; console.error(e); }
   ui();
 })();
@@ -204,7 +198,7 @@ function sense(t){
   } else if (camState === "on") pose = { ...pose, face:false };
   else pose = { ...simPose, face:true };
 }
-function zone(){ return run ? run.work : { base: base() || {p:0,y:0}, tol: DEF_TOL, thr: DEF_THR }; }
+function zone(){ return run ? run.work : { base: base() || {p:0,y:0}, tol: TASK_TOL[task] }; }
 function rel(){ const b = zone().base; return { dp: pose.p - b.p, dy: pose.y - b.y }; }
 function inZone(){
   if (!pose.face) return null;
@@ -241,7 +235,7 @@ $("btnLink").onclick = () => {
   if (!c){ $("linkNote").textContent = "Enter the 4 digits shown on the dashboard, for example FB-2741."; return; }
   $("code").value = c; connect(c);
 };
-function emit(type, data = {}){ link?.send("event", { type, pid: pid(), task, round: run?.round ?? null, demo: run?.demo ?? demo(), ...data }); }
+function emit(type, data = {}){ link?.send("event", { type, pid: pid(), task, round: run?.round ?? null, demo: run?.demo ?? demo(), phase: run?.phase ?? phase, ...data }); }
 let lastLive = 0, lastState = "";
 function liveState(){
   if (!run) return "idle";
@@ -259,7 +253,7 @@ function sendLive(force){
     step: run ? run.i + 1 : 0, steps: run ? run.segs.length : 0,
     alerts: run?.alerts.length ?? 0, falseAlerts: s?.falseAlerts ?? 0, detected: s?.detected ?? 0, episodes: s?.episodes ?? 0,
     recov: run && run.recov.length ? run.recov.reduce((a,b)=>a+b,0)/run.recov.length/1000 : null,
-    teacher: run?.teacherSent ?? false, calibrated: Object.keys(calibs[pid()] || {}) }, true);
+    phase, teacher: run?.teacherSent ?? false, calibrated: Object.keys(calibs[pid()] || {}) }, true);
 }
 function sendResults(){ if (link) link.send("results", { rows: sessions.filter(s => s.code === link.code) }, true); }
 
@@ -287,14 +281,17 @@ function stepCalib(t){
 
 // ---------- rounds ----------
 let demoChosen = false;
-const doneRound = r => sessions.some(s => s.pid === pid() && s.task === task && s.round === r && s.completed && !s.demo);
+const phaseOf = s => s.phase || "pilot";   // rounds saved before phases existed count as pilot
+// Progress on this screen: real rounds count for real work; in Demo Mode, demo rounds move the steps on (they never enter results).
+const doneFor = (t, r) => sessions.some(s => s.pid === pid() && s.task === t && s.round === r && s.completed && !!s.demo === demo() && phaseOf(s) === phase);
+const doneRound = r => doneFor(task, r);
 function nextAction(){
   if (calib) return { label:"Calibrating…", icon:"target", go:null };
   if (camState !== "on" && !demoChosen) return { label:"Start camera", icon:"camera", go:() => $("btnCam").click() };
   if (!base()) return { label:"Calibrate · 20 s", icon:"target", go:calibrate };
   if (!doneRound(1)) return { label:"Start Round 1 · no learning", icon:"play", go:() => startRound(1) };
   if (!doneRound(2)) return { label:"Start Round 2 · with learning", icon:"play", go:() => startRound(2) };
-  const nxt = ["reading","writing","listening"].find(t => !(sessions.some(s => s.pid === pid() && s.task === t && s.round === 2 && s.completed && !s.demo)));
+  const nxt = ["reading","writing","listening"].find(t => !(doneFor(t, 2)));
   return nxt ? { label:"Next task: " + TASK_LABEL[nxt], icon:"arrow", go:() => { task = nxt; ui(); sendLive(true); } }
              : { label:"All tasks done · see the dashboard", icon:"check", go:null };
 }
@@ -307,9 +304,9 @@ $("linkPill").onclick = () => { $("more").open = true; $("code").scrollIntoView(
 function startRound(round){
   if (!base() || run || calib) return;
   const segs = []; for (let c = 0; c < CYCLES; c++) SCRIPTS[task].forEach(s => segs.push({ ...s }));
-  // Both rounds start from the same calibration and the same default zone, so the comparison is fair.
-  run = { round, task, pid: pid(), demo: demo(), start: now(), startedAt: new Date().toISOString(),
-    work: { base: { ...base() }, tol: { ...DEF_TOL }, thr: DEF_THR },
+  // Both rounds start from the same calibration and the same task zone, with the same fixed wait, so the comparison is fair.
+  run = { round, task, pid: pid(), demo: demo(), phase, start: now(), startedAt: new Date().toISOString(),
+    work: { base: { ...base() }, tol: { ...TASK_TOL[task] } }, poses: { on: [], test: [], off: [] }, lastPoseAt: 0,
     segs, i: -1, segStart: 0, state: "monitor", offMs: 0, offBuf: [], cooldownUntil: 0,
     alertAt: 0, lastNudgeAt: 0, nudges: 0, inSince: null, teacherSent: false,
     alerts: [], repeats: 0, teacherSupport: 0, focused: 0, recov: [], episodes: [], open: null,
@@ -327,20 +324,30 @@ function nextSeg(){
   if (seg.k === "off") run.open = { s: t, lost: 0 };
   $("svTask").textContent = seg.s; stepTone(); speak(seg.s);
 }
+function pct(a, q){ if (!a.length) return null; const s = [...a].sort((x,y)=>x-y); return s[Math.min(s.length-1, Math.max(0, Math.round(q*(s.length-1))))]; }
+function spread(list){
+  if (list.length < 10) return null;
+  const dp = list.map(x => x[0]), dy = list.map(x => x[1]), r = v => +v.toFixed(1);
+  const side = v => r(Math.max(0, v));   // 0 = the head never went to that side
+  return { n: list.length, up: side(pct(dp,.95)), down: side(-pct(dp,.05)), right: side(pct(dy,.95)), left: side(-pct(dy,.05)) };
+}
 function endRound(finished){
   if (!run) return;
   const t = now();
   if (run.open){ run.episodes.push([run.open.s, t, run.open.lost]); run.open = null; }
   const s = score(run.episodes, run.alerts), n = run.alerts.length;
   const row = { n: sessions.length + 1, code: link?.code ?? null, pid: run.pid, task: run.task, round: run.round, demo: run.demo,
-    completed: finished, startedAt: run.startedAt, minutes: +((t - run.start)/60000).toFixed(2),
+    phase: run.phase, version: VERSION, completed: finished, startedAt: run.startedAt, minutes: +((t - run.start)/60000).toFixed(2),
     alerts: n, repeats: run.repeats, teacherSupport: run.teacherSupport, iWasFocused: run.focused,
     episodes: s.episodes, excludedEpisodes: s.excluded, detected: s.detected, detectPct: s.episodes ? +(100*s.detected/s.episodes).toFixed(1) : null,
     falseAlerts: s.falseAlerts, falsePct: n ? +(100*s.falseAlerts/n).toFixed(1) : 0,
     meanReturnS: run.recov.length ? +(run.recov.reduce((a,b)=>a+b,0)/run.recov.length/1000).toFixed(2) : null,
     recovSumS: +(run.recov.reduce((a,b)=>a+b,0)/1000).toFixed(2), recovN: run.recov.length,
     trackingLostCount: run.lostCount, trackingLostS: +(run.lostMs/1000).toFixed(1),
-    finalZone: run.round === 2 ? run.work.tol : null };
+    alertS: ALERT_S, startZone: TASK_TOL[run.task], finalZone: run.work.tol,
+    learn: run.round === 2 ? { step: LEARN.STEP, cap: LEARN.CAP } : null,
+    // Head-angle spread (5th–95th percentile, degrees from the centre) per script step type: the evidence for the task zones.
+    spread: { on: spread(run.poses.on), test: spread(run.poses.test), off: spread(run.poses.off) } };
   sessions.push(row); store.set("sessions", sessions);
   emit("round_end", { row });
   run = null; sendResults(); sendLive(true);
@@ -354,6 +361,9 @@ function step(t){
   if (!run) return;
   const dt = Math.min(t - run.lastT, 500); run.lastT = t;
   const z = inZone();
+  // Head angle relative to the centre, about 5 times a second, grouped by the script step (on / test / off).
+  const seg = run.segs[run.i];
+  if (z !== null && seg && t - run.lastPoseAt >= 200 && t - run.segStart >= 1500){ run.lastPoseAt = t; const q = rel(); run.poses[seg.k]?.push([+q.dp.toFixed(1), +q.dy.toFixed(1)]); }
   // tracking lost: logged on its own, never counted as off-task
   if (z === null){
     run.lostSince ??= t; run.lostMs += dt; if (run.open) run.open.lost += dt;
@@ -365,7 +375,7 @@ function step(t){
   if (run.state === "monitor"){
     if (z === true || t < run.cooldownUntil){ run.offMs = 0; run.offBuf = []; return; }
     if (z === false){ run.offMs += dt; run.offBuf.push(rel()); }
-    if (run.offMs >= run.work.thr * 1000) raiseAlert(t);
+    if (run.offMs >= ALERT_S * 1000) raiseAlert(t);
   } else if (run.state === "alert"){
     if (z === true){
       run.inSince ??= t;
@@ -379,7 +389,7 @@ function step(t){
     } else {
       if (z === false) run.inSince = null;
       const since = t - run.lastNudgeAt;
-      if (since >= REPEAT_MS && run.nudges === 1){ run.nudges = 2; run.lastNudgeAt = t; run.repeats++; emit("alert_repeat"); flash(); watchAlert(true); }
+      if (since >= REPEAT_MS && run.nudges === 1){ run.nudges = 2; run.lastNudgeAt = t; run.repeats++; emit("alert_repeat"); flash(); }
       else if (since >= REPEAT_MS && run.nudges >= 2 && !run.teacherSent){ run.teacherSent = true; run.teacherSupport++; emit("teacher_support"); }
     }
   }
@@ -388,71 +398,47 @@ function raiseAlert(t){
   run.state = "alert"; run.alertAt = t; run.lastNudgeAt = t; run.nudges = 1; run.inSince = null;
   run.alerts.push({ at: t, buf: run.offBuf.slice() });
   emit("alert", { off_s: +(run.offMs/1000).toFixed(1) });
-  watchAlert(false);
   $("svMsg").textContent = "Quick check: back to your task?";
-  $("svSub").textContent = "If you were working, tap “I was focused”.";
+  $("svSub").textContent = "Just go back to it. If you were already working, tap “I was focused”.";
   $("svBtns").hidden = false; flash();
 }
 function flash(){ const sv = $("sv"); sv.classList.remove("alerting"); void sv.offsetWidth; sv.classList.add("alerting"); softAlert(); }
 function hideAlert(){ $("sv").classList.remove("alerting"); $("svBtns").hidden = true; $("svMsg").textContent = "You’re on track."; $("svSub").textContent = "Only you can see this screen."; }
-$("btnBack").onclick = () => { if (run?.state === "alert"){ emit("im_back"); $("svMsg").textContent = "Welcome back."; } };
 $("btnFocused").onclick = () => {
   if (run?.state !== "alert") return;
   run.focused++; const a = run.alerts[run.alerts.length - 1]; a.focused = true;
-  const before = { ...run.work.tol }, thrBefore = run.work.thr;
+  const before = { ...run.work.tol };
   if (run.round === 2) adapt(a.buf);
-  emit("i_was_focused", { learned: run.round === 2, before, after: { ...run.work.tol }, thr_before: thrBefore, thr_after: run.work.thr });
+  emit("i_was_focused", { learned: run.round === 2, before, after: { ...run.work.tol } });
   run.state = "monitor"; run.offMs = 0; run.offBuf = []; run.cooldownUntil = now() + COOLDOWN_MS; run.nudges = 0; run.teacherSent = false;
   hideAlert();
 };
 function adapt(buf){
   if (!buf.length) return;
-  // Gradual: each correction widens a side by at most 8°, never beyond 35°; the wait grows by 0.5 s up to 8 s.
-  const dp = median(buf.map(s => s.dp)), dy = median(buf.map(s => s.dy)), M = 3, STEP = 8, CAP = 35, t = run.work.tol;
-  const grow = (cur, need) => need > cur ? Math.min(CAP, cur + STEP, need + M) : cur;
+  // Gradual: only the side the head moved to widens, by at most LEARN.STEP, never beyond LEARN.CAP. The wait stays fixed.
+  const dp = median(buf.map(s => s.dp)), dy = median(buf.map(s => s.dy)), t = run.work.tol;
+  const grow = (cur, need) => need > cur ? Math.min(LEARN.CAP, cur + LEARN.STEP, need + LEARN.MARGIN) : cur;
   t.up = grow(t.up, dp); t.down = grow(t.down, -dp); t.right = grow(t.right, dy); t.left = grow(t.left, -dy);
-  run.work.thr = Math.min(8, run.work.thr + .5);
 }
 
-// ---------- smartwatch alerts ----------
-// The alert goes to ntfy.sh (a free push service). Its phone app shows it as a normal notification,
-// which Wear OS, Galaxy Watch and Apple Watch mirror to the wrist. Only a short fixed message is sent: no data.
-let watch = store.get("watch", { on:false, topic:"" });
-function newTopic(){ const a = "abcdefghjkmnpqrstuvwxyz23456789"; let s = ""; for (let i = 0; i < 6; i++) s += a[Math.floor(Math.random()*a.length)]; return "focusback-" + s; }
-if (!watch.topic) watch.topic = newTopic();
-function saveWatch(){ store.set("watch", watch); }
-function renderWatch(){
-  $("watchOn").checked = watch.on; $("watchBox").hidden = !watch.on; $("topicTxt").textContent = watch.topic;
-  const q = $("qr"); q.textContent = "";
-  try{ new QRCode(q, { text: "https://ntfy.sh/" + watch.topic, width: 240, height: 240, correctLevel: QRCode.CorrectLevel.M }); }catch{ q.hidden = true; }
-}
-async function pushWatch(title, body, tags){
-  const r = await fetch("https://ntfy.sh/" + watch.topic, { method:"POST", body,
-    headers:{ "Title": title, "Priority": "high", "Tags": tags } });
-  if (!r.ok) throw new Error("HTTP " + r.status);
-}
-function watchAlert(second){
-  if (!watch.on || !run) return;
-  pushWatch("FocusBack", second ? "Second check: back to your task? · عُد إلى مهمتك" : "Quick check: back to your task? · عُد إلى مهمتك", "eyes")
-    .then(() => { $("watchNote").textContent = "Last alert sent to the watch at " + new Date().toLocaleTimeString(); })
-    .catch(() => { $("watchNote").textContent = "Could not reach the alert service. Check the internet connection."; });
-}
-$("watchOn").onchange = () => { watch.on = $("watchOn").checked; saveWatch(); renderWatch(); };
-$("btnNewTopic").onclick = () => { watch.topic = newTopic(); saveWatch(); renderWatch(); $("watchNote").textContent = "New channel. Subscribe to it again in the ntfy app."; };
-$("btnTest").onclick = () => {
-  $("watchNote").textContent = "Sending…";
-  pushWatch("FocusBack test", "Test alert. If your watch buzzed, it is ready. · تنبيه تجريبي", "white_check_mark")
-    .then(() => { $("watchNote").textContent = "Test sent. It should arrive on the phone and watch within a few seconds."; })
-    .catch(() => { $("watchNote").textContent = "Could not reach the alert service. Check the internet connection."; });
+// ---------- study phase ----------
+function setPhase(p){ phase = p; store.set("phase", p); ui(); sendLive(true); }
+document.querySelectorAll("[data-phase]").forEach(b => b.onclick = () => { if (!run && !calib) setPhase(b.dataset.phase); });
+let clearArmed = 0;
+$("btnClearPilot").onclick = () => {
+  const n = sessions.filter(s => phaseOf(s) === "pilot").length;
+  if (!n){ $("clearNote").textContent = "No pilot rounds on this device."; return; }
+  if (Date.now() - clearArmed > 5000){ clearArmed = Date.now(); $("clearNote").textContent = `Tap again to delete ${n} pilot round${n === 1 ? "" : "s"}. Download the CSV on the dashboard first.`; return; }
+  sessions = sessions.filter(s => phaseOf(s) !== "pilot"); store.set("sessions", sessions); clearArmed = 0;
+  $("clearNote").textContent = "Pilot rounds deleted on this device."; ui();
 };
-renderWatch();
 
 // ---------- controls ----------
 document.querySelectorAll("[data-task]").forEach(b => b.onclick = () => { if (run || calib) return; task = b.dataset.task; ui(); sendLive(true); });
 $("pid").onchange = () => { ui(); sendLive(true); };
 document.addEventListener("keydown", e => {
   if (e.target.tagName === "INPUT" || e.repeat || !run) return;
-  const k = e.key.toLowerCase(); if (k === "b") $("btnBack").click(); else if (k === "f") $("btnFocused").click();
+  if (e.key.toLowerCase() === "f") $("btnFocused").click();
 });
 const pc = $("pose"); let drag = false;
 function simFrom(e){ const r = pc.getBoundingClientRect(), b = zone().base, s = Math.min(r.width/110, r.height/80);
@@ -460,11 +446,13 @@ function simFrom(e){ const r = pc.getBoundingClientRect(), b = zone().base, s = 
 pc.addEventListener("pointerdown", e => { if (camState !== "on"){ drag = true; pc.setPointerCapture(e.pointerId); simFrom(e); } });
 pc.addEventListener("pointermove", e => { if (drag) simFrom(e); });
 pc.addEventListener("pointerup", () => drag = false);
+window.FB_state = () => run && { k: run.segs[run.i]?.k, i: run.i, state: run.state, tol: { ...run.work.tol } };   // read by tests
 window.FB_sim = (dy, dp) => { const b = zone().base; simPose = { y: b.y + dy, p: b.p + dp }; };   // used by the demo and tests
 
 // ---------- ui ----------
 function ui(){
   document.querySelectorAll("[data-task]").forEach(b => { b.setAttribute("aria-pressed", b.dataset.task === task); b.disabled = !!(run || calib); });
+  document.querySelectorAll("[data-phase]").forEach(b => { b.setAttribute("aria-pressed", b.dataset.phase === phase); b.disabled = !!(run || calib); });
   const lp = $("linkPill"), st = link?.status;
   // Green only when the dashboard itself has answered in the last 10 seconds.
   const seen = link && Date.now() - dashSeen < 10000;

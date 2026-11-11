@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&family=Readex+Pro:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="style.css?v=1794208572">
-<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script src="vendor/mqtt.min.js"></script>
 <style>
 /* Layout: session code and live status on top (what a teacher glances at), the Round 1 vs Round 2 comparison below. */
 .toprow{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:stretch}
@@ -64,6 +64,7 @@ details.more > summary{cursor:pointer;padding:16px 20px;min-height:44px;color:va
 details.more[open] > summary{border-bottom:1px solid var(--line)}
 details.more .cardhead{border-top:1px solid var(--line)}
 .state.on{border-color:var(--zone);color:var(--brand)}
+.viewbar{padding:0 20px 12px;max-width:520px}
 </style>
 </head>
 <body>
@@ -109,9 +110,14 @@ details.more .cardhead{border-top:1px solid var(--line)}
 
   <section class="card" id="resCard">
     <div class="cardhead">
-      <div><h2><svg class="i lg" aria-hidden="true"><use href="#i-chart"/></svg>Round 1 vs Round 2</h2><p class="note">Success: fewer wrong alerts in Round 2, while real off-task is still caught.</p></div>
+      <div><h2><svg class="i lg" aria-hidden="true"><use href="#i-chart"/></svg>Round 1 vs Round 2</h2><p class="note" id="viewNote">Success: fewer wrong alerts in Round 2, while real off-task is still caught.</p></div>
       <button class="btn main" id="btnPng"><svg class="i " aria-hidden="true"><use href="#i-download"/></svg>Download charts</button>
     </div>
+    <div class="viewbar"><div class="seg" role="group" aria-label="Which results">
+      <button data-view="session" aria-pressed="true">This session</button>
+      <button data-view="final" aria-pressed="false">Final study</button>
+      <button data-view="pilot" aria-pressed="false">Pilot</button>
+    </div></div>
     <div class="verdict" id="verdict"></div>
     <div id="chartWrap"><canvas id="charts" width="1500" height="560" aria-label="Round 1 and Round 2 results"></canvas></div>
   </section>
@@ -120,8 +126,13 @@ details.more .cardhead{border-top:1px solid var(--line)}
     <summary>Details: numbers per task, every round, live activity</summary>
     <div class="cmp" id="cmp"></div>
     <div class="cardhead"><div><h2>Rounds</h2></div><button class="btn" id="btnCsv"><svg class="i " aria-hidden="true"><use href="#i-download"/></svg>Download data (CSV)</button></div>
-    <div class="tablewrap"><table id="tbl"><thead><tr><th>Code</th><th>Student</th><th>Task</th><th>Round</th><th>Alerts</th><th>Wrong alerts</th><th>Off-task caught</th><th>Return (s)</th><th>Tracking lost</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div class="tablewrap"><table id="tbl"><thead><tr><th>Code</th><th>Student</th><th>Task</th><th>Round</th><th>Alerts</th><th>Wrong alerts</th><th>Off-task caught</th><th>Return (s)</th><th>Tracking lost</th><th>Phase</th><th></th></tr></thead><tbody></tbody></table></div>
     <div class="empty" id="emptyT">No rounds yet.</div>
+    <div id="zoneBox" hidden>
+      <div class="cardhead"><div><h2>Task zones from the data</h2><p class="note">95th percentile of head angle from the calibration centre (degrees), median over finished rounds. “On task” = steady work · “Natural movement” = the test steps. Use On task to set each task’s default zone.</p></div></div>
+      <div class="tablewrap"><table id="zoneTbl"><thead><tr><th>Task</th><th>Rounds</th><th>Steps</th><th>Up</th><th>Down</th><th>Left</th><th>Right</th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="cardhead" id="clearRow" hidden><div><h2>Pilot data</h2><p class="note" id="clearNote">Deletes pilot rounds stored on this dashboard. Download the CSV first. Clear the student device too (Settings on the student page).</p></div><button class="btn" id="btnClearPilot">Clear pilot data</button></div>
     <div class="cardhead"><div><h2>Activity</h2></div></div>
     <div class="feed" id="feed"></div><div class="empty" id="emptyF">Events appear here during a round.</div>
   </details>
@@ -130,12 +141,24 @@ details.more .cardhead{border-top:1px solid var(--line)}
 </div>
 
 <script type="module">
-import { TASKS, TASK_LABEL, ROUND_LABEL, aggregate, drawCharts, csv, download, store, normCode, newCode, Link } from "./common.js?v=1794208572";
+import { TASKS, TASK_LABEL, ROUND_LABEL, aggregate, counts, phaseOf, zoneEvidence, drawCharts, csv, download, store, normCode, newCode, Link } from "./common.js?v=1794294000";
 const $ = id => document.getElementById(id);
 
 let link = null, live = null, liveAt = 0;
 let rows = store.get("dash_rows", []);
 let events = store.get("dash_events", []);
+// Which results are shown: this session only (what a teacher or parent should see), or the whole study, by phase.
+let view = store.get("dash_view", "session");
+function viewRows(){
+  if (view === "session") return link ? rows.filter(r => r.code === link.code) : [];
+  return rows.filter(r => phaseOf(r) === view);
+}
+const VIEW_NOTE = {
+  session: "This session only. Success: fewer wrong alerts in Round 2, while real off-task is still caught.",
+  final: "Final study: all finished rounds of real participants on this dashboard.",
+  pilot: "Pilot: practice rounds, kept out of the final results.",
+};
+document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => { view = b.dataset.view; store.set("dash_view", view); renderAll(); });
 
 function open(code){
   link?.close(); live = null; liveAt = 0;
@@ -144,11 +167,11 @@ function open(code){
   $("codeTxt").textContent = code; $("noSession").hidden = true; $("hasSession").hidden = false;
   setTimeout(() => link?.send("hello", {}), 1200);
   clearInterval(window.__ping); window.__ping = setInterval(() => link?.send("ping", {}), 3000);
-  ui();
+  renderAll(); ui();
 }
 $("btnCreate").onclick = () => open(newCode());
 $("btnOpen").onclick = () => { const c = normCode($("openCode").value); if (c) open(c); else $("openCode").focus(); };
-$("btnNew").onclick = () => { link?.close(); link = null; live = null; $("noSession").hidden = false; $("hasSession").hidden = true; store.set("dash_code", ""); ui(); };
+$("btnNew").onclick = () => { link?.close(); link = null; live = null; $("noSession").hidden = false; $("hasSession").hidden = true; store.set("dash_code", ""); renderAll(); ui(); };
 $("btnCopy").onclick = async () => {
   const url = new URL("student.html?code=" + link.code, location.href).href;
   try{ await navigator.clipboard.writeText(url); $("copyNote").textContent = "Copied: " + url; } catch { $("copyNote").textContent = url; }
@@ -161,7 +184,7 @@ function onMsg(topic, msg){
   else if (topic === "event"){
     if (msg.type === "round_end" && msg.row) mergeRows([msg.row]);
     if (msg.type === "teacher_support"){ $("supportTxt").textContent = `${msg.pid} did not return to ${TASK_LABEL[msg.task] || "the task"} after two private alerts.`; $("support").hidden = false; }
-    if (["alert","alert_repeat","returned","i_was_focused","im_back","teacher_support","tracking_lost","tracking_restored","round_start","round_end","calibrated"].includes(msg.type)){
+    if (["alert","alert_repeat","returned","i_was_focused","teacher_support","tracking_lost","tracking_restored","round_start","round_end","calibrated"].includes(msg.type)){
       const e = { ts: msg.ts || Date.now(), code: link?.code, pid: msg.pid, task: msg.task, round: msg.round, demo: msg.demo, type: msg.type,
         recovery_s: msg.recovery_s, lost_s: msg.lost_s, learned: msg.learned };
       events.push(e); if (events.length > 2000) events = events.slice(-2000); store.set("dash_events", events); renderFeed();
@@ -182,7 +205,7 @@ const LBL = {
   alert: e => ["Private alert sent", ""], alert_repeat: () => ["Second private alert", ""],
   returned: e => ["Back on task", e.recovery_s != null ? `in ${e.recovery_s}s` : ""],
   i_was_focused: e => ["Student: “I was focused”", e.learned ? "the system learned from it" : "recorded (Round 1 does not learn)"],
-  im_back: () => ["Student: “I’m back”", ""], teacher_support: () => ["Teacher support needed", ""],
+  teacher_support: () => ["Teacher support needed", ""],
   tracking_lost: () => ["Tracking lost", "not counted as off-task"], tracking_restored: e => ["Tracking restored", e.lost_s != null ? `after ${e.lost_s}s` : ""],
   round_start: e => [`${ROUND_LABEL[e.round] || "Round"} started`, TASK_LABEL[e.task] || ""], round_end: e => [`${ROUND_LABEL[e.round] || "Round"} finished`, TASK_LABEL[e.task] || ""],
   calibrated: e => ["Calibrated", TASK_LABEL[e.task] || ""],
@@ -203,7 +226,7 @@ function renderFeed(){
 }
 
 function renderCmp(){
-  const A = aggregate(rows), box = $("cmp"); box.textContent = "";
+  const A = aggregate(viewRows()), box = $("cmp"); box.textContent = "";
   const f = (v, u) => v == null ? "–" : (u === "s" ? v.toFixed(1) : Math.round(v)) + u;
   for (const t of TASKS){
     const r1 = A[t+"_1"], r2 = A[t+"_2"], div = document.createElement("div"); div.className = "task";
@@ -223,7 +246,7 @@ function renderCmp(){
 }
 // Improvement over time: wrong-alert rate of every finished round of this task, oldest to newest.
 function spark(t){
-  const list = rows.filter(r => r.task === t && !r.demo && r.episodes > 0).sort((a,b) => (a.startedAt||"").localeCompare(b.startedAt||""));
+  const list = viewRows().filter(r => r.task === t && counts(r)).sort((a,b) => (a.startedAt||"").localeCompare(b.startedAt||""));
   if (list.length < 2) return '<div class="spark">Improvement over time appears after two rounds.</div>';
   const W = 240, H = 40, n = list.length, x = i => 6 + i * (W - 12) / (n - 1), y = v => 4 + (1 - v/100) * (H - 8);
   const pts = list.map((r,i) => `${x(i).toFixed(1)},${y(r.falsePct).toFixed(1)}`).join(" ");
@@ -231,19 +254,40 @@ function spark(t){
   return `<div class="spark"><span>Wrong alerts per round, oldest → newest</span><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Wrong alert rate across ${n} rounds: ${list.map(r => r.falsePct + "%").join(", ")}"><line x1="0" x2="${W}" y1="${H-4}" y2="${H-4}" stroke="var(--line)"/><polyline points="${pts}" fill="none" stroke="var(--muted)" stroke-width="1.5"/>${dots}</svg></div>`;
 }
 function renderTable(){
-  const tb = $("tbl").querySelector("tbody"); tb.textContent = "";
-  $("emptyT").hidden = rows.length > 0; $("tbl").hidden = !rows.length;
-  [...rows].sort((a,b) => (b.startedAt||"").localeCompare(a.startedAt||"")).forEach(r => {
+  const tb = $("tbl").querySelector("tbody"), list = viewRows(); tb.textContent = "";
+  $("emptyT").hidden = list.length > 0; $("tbl").hidden = !list.length;
+  $("emptyT").textContent = view === "session" && !link ? "Open a session to see its rounds." : "No rounds yet.";
+  [...list].sort((a,b) => (b.startedAt||"").localeCompare(a.startedAt||"")).forEach(r => {
     const tr = document.createElement("tr");
     const cells = [r.code, r.pid, TASK_LABEL[r.task], "Round " + r.round, r.alerts, `${r.falseAlerts} (${r.falsePct}%)`,
       r.episodes ? `${r.detected}/${r.episodes}` : "–", r.meanReturnS ?? "–", `${r.trackingLostCount}× · ${r.trackingLostS}s`,
-      r.demo ? "Demo · excluded" : r.completed ? "" : "Stopped early"];
+      phaseOf(r) === "final" ? "Final" : "Pilot",
+      r.demo ? "Demo · excluded" : r.completed ? "" : "Stopped early · excluded"];
     cells.forEach((v, i) => { const td = document.createElement("td"); td.textContent = v ?? "–"; if (i >= 4 && i <= 8) td.className = "n"; tr.appendChild(td); });
     tb.appendChild(tr);
   });
 }
+function renderZones(){
+  $("zoneBox").hidden = view === "session"; $("clearRow").hidden = view !== "pilot";
+  if (view === "session") return;
+  const Z = zoneEvidence(viewRows()), tb = $("zoneTbl").querySelector("tbody"); tb.textContent = "";
+  for (const t of TASKS) for (const [k, lbl] of [["on","On task"],["test","Natural movement"]]){
+    const z = Z[t][k], tr = document.createElement("tr");
+    [k === "on" ? TASK_LABEL[t] : "", k === "on" ? Z[t].n : "", lbl, ...["up","down","left","right"].map(d => z && z[d] != null ? z[d] + "°" : "–")]
+      .forEach((v, i) => { const td = document.createElement("td"); td.textContent = v; if (i >= 3) td.className = "n"; tr.appendChild(td); });
+    tb.appendChild(tr);
+  }
+}
+let clearArmed = 0;
+$("btnClearPilot").onclick = () => {
+  const n = rows.filter(r => phaseOf(r) === "pilot").length;
+  if (!n){ $("clearNote").textContent = "No pilot rounds on this dashboard."; return; }
+  if (Date.now() - clearArmed > 5000){ clearArmed = Date.now(); $("clearNote").textContent = `Tap again to delete ${n} pilot round${n === 1 ? "" : "s"} from this dashboard.`; return; }
+  rows = rows.filter(r => phaseOf(r) !== "pilot"); store.set("dash_rows", rows); clearArmed = 0;
+  $("clearNote").textContent = "Pilot rounds deleted from this dashboard. Clear the student device too."; renderAll();
+};
 function renderVerdict(){
-  const A = aggregate(rows), v = $("verdict"); v.textContent = "";
+  const A = aggregate(viewRows()), v = $("verdict"); v.textContent = "";
   for (const t of TASKS){
     const r1 = A[t+"_1"], r2 = A[t+"_2"], el = document.createElement("span");
     if (r1.falsePct == null || r2.falsePct == null){ el.textContent = `${TASK_LABEL[t]}: run both rounds`; }
@@ -252,10 +296,15 @@ function renderVerdict(){
     v.appendChild(el);
   }
 }
-function renderAll(){ renderVerdict(); renderCmp(); renderTable(); drawCharts($("charts"), rows); renderFeed(); }
+function renderAll(){
+  document.querySelectorAll("[data-view]").forEach(b => b.setAttribute("aria-pressed", b.dataset.view === view));
+  $("viewNote").textContent = VIEW_NOTE[view];
+  renderVerdict(); renderCmp(); renderTable(); renderZones(); drawCharts($("charts"), viewRows()); renderFeed();
+}
 
-$("btnPng").onclick = () => { drawCharts($("charts"), rows, true); $("charts").toBlob(b => { if (b) download("focusback_charts.png", b); drawCharts($("charts"), rows); }, "image/png"); };
+$("btnPng").onclick = () => { drawCharts($("charts"), viewRows(), true); $("charts").toBlob(b => { if (b) download(`focusback_charts_${view}.png`, b); drawCharts($("charts"), viewRows()); }, "image/png"); };
 $("btnCsv").onclick = () => {
+  // Every round on this dashboard, with its phase column, so nothing is lost; filter in the spreadsheet.
   download("focusback_rounds.csv", new Blob([csv(rows)], { type:"text/csv" }));
   setTimeout(() => download("focusback_events.csv", new Blob([csv(events)], { type:"text/csv" })), 600);
 };
@@ -284,7 +333,7 @@ function ui(){
   $("mRec").textContent = has && live.recov != null ? live.recov.toFixed(1) + "s" : "–";
 }
 setInterval(ui, 2000);
-matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => drawCharts($("charts"), rows));
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => drawCharts($("charts"), viewRows()));
 
 const qp = normCode(new URLSearchParams(location.search).get("code")), saved = store.get("dash_code", "");
 if (qp) open(qp); else if (saved) open(saved);
