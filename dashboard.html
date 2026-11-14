@@ -66,6 +66,8 @@ details.more .cardhead{border-top:1px solid var(--line)}
 .state.on{border-color:var(--zone);color:var(--brand)}
 .viewbar{padding:0 20px 12px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
 .viewbar .seg{flex:0 1 520px}
+#invTbl input{width:100%;min-width:180px;font:inherit;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:transparent;color:inherit}
+#invTbl td:last-child{white-space:nowrap}
 </style>
 </head>
 <body>
@@ -109,6 +111,18 @@ details.more .cardhead{border-top:1px solid var(--line)}
     <button class="btn" id="btnSupportOk">Dismiss</button>
   </section>
 
+  <section class="card" id="invCard">
+    <div class="cardhead">
+      <div><h2>Participant links</h2><p class="note">One link per participant. They open it on their own device and are guided step by step in Arabic, with no settings. Their rounds go to the results sheet.</p></div>
+      <button class="btn main" id="btnInvite"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg><span>New link</span></button>
+    </div>
+    <div class="viewbar"><div class="seg" role="group" aria-label="Phase for new links">
+      <button data-invphase="final" aria-pressed="true">Final study</button>
+      <button data-invphase="pilot" aria-pressed="false">Pilot</button>
+    </div><span class="note" id="invNote"></span></div>
+    <div class="tablewrap" id="invWrap"><table id="invTbl"><thead><tr><th>Participant</th><th>Session</th><th>Phase</th><th>Rounds done</th><th>Link</th><th></th></tr></thead><tbody></tbody></table></div>
+  </section>
+
   <section class="card" id="resCard">
     <div class="cardhead">
       <div><h2><svg class="i lg" aria-hidden="true"><use href="#i-chart"/></svg>Round 1 vs Round 2</h2><p class="note" id="viewNote">Success: fewer wrong alerts in Round 2, while real off-task is still caught.</p></div>
@@ -142,11 +156,12 @@ details.more .cardhead{border-top:1px solid var(--line)}
 </div>
 
 <script type="module">
-import { TASKS, TASK_LABEL, ROUND_LABEL, aggregate, counts, phaseOf, zoneEvidence, setupIssue, drawCharts, csv, download, store, normCode, newCode, Link, sheetOn, sheetLoad, sheetQueue, rowId } from "./common.js?v=1794410000";
+import { TASKS, TASK_LABEL, ROUND_LABEL, aggregate, counts, phaseOf, zoneEvidence, setupIssue, drawCharts, csv, download, store, normCode, newCode, Link, sheetOn, sheetLoad, sheetQueue, rowId } from "./common.js?v=1794420000";
 const $ = id => document.getElementById(id);
 
 let link = null, live = null, liveAt = 0;
-let rows = store.get("dash_rows", []);          // rounds received live by this dashboard
+let rows = store.get("dash_rows", []);
+let invites = store.get("dash_invites", []), invPhase = store.get("dash_invphase", "final");   // participant links made here          // rounds received live by this dashboard
 let sheetRows = [], sheetAt = 0, sheetErr = ""; // rounds from the Google Sheet (every device)
 // Everything known: this dashboard's rounds plus the sheet's, one copy of each round.
 function all(){
@@ -177,6 +192,38 @@ function open(code){
   renderAll(); ui();
 }
 $("btnCreate").onclick = () => open(newCode());
+
+// ---------- participant links ----------
+const pnum = x => +(String(x || "").match(/\d+/)?.[0] || 0);
+const nextPid = () => "P" + String(Math.max(0, ...invites.map(i => pnum(i.pid)), ...all().filter(r => !r.demo).map(r => pnum(r.pid))) + 1).padStart(2, "0");
+const inviteUrl = i => { const u = new URL("student.html", location.href); u.search = new URLSearchParams({ code: i.code, pid: i.pid, phase: i.phase }).toString(); return u.toString(); };
+document.querySelectorAll("[data-invphase]").forEach(b => b.onclick = () => { invPhase = b.dataset.invphase; store.set("dash_invphase", invPhase); renderInvites(); });
+$("btnInvite").onclick = async () => {
+  const i = { pid: nextPid(), code: newCode(), phase: invPhase, created: new Date().toISOString() };
+  invites.push(i); store.set("dash_invites", invites); renderInvites();
+  try{ await navigator.clipboard.writeText(inviteUrl(i)); $("invNote").textContent = `Link for ${i.pid} copied. Send it to the participant.`; }
+  catch{ $("invNote").textContent = `Link for ${i.pid} is ready below. Copy it and send it.`; }
+};
+function renderInvites(){
+  document.querySelectorAll("[data-invphase]").forEach(b => b.setAttribute("aria-pressed", b.dataset.invphase === invPhase));
+  $("btnInvite").querySelector("span").textContent = `New link for ${nextPid()}`;
+  $("invWrap").hidden = !invites.length;
+  const tb = $("invTbl").querySelector("tbody"); tb.textContent = "";
+  for (const i of [...invites].reverse()){
+    const done = all().filter(r => r.code === i.code && r.completed === true && !r.demo).length;
+    const tr = document.createElement("tr");
+    const td = (v, cls) => { const c = document.createElement("td"); if (v instanceof Node) c.appendChild(v); else c.textContent = v; if (cls) c.className = cls; tr.appendChild(c); return c; };
+    td(i.pid); td(i.code); td(i.phase === "final" ? "Final" : "Pilot");
+    td(done >= 6 ? "6 of 6 · done ✓" : `${done} of 6`, "n");
+    const inp = document.createElement("input"); inp.readOnly = true; inp.value = inviteUrl(i); inp.onfocus = () => inp.select(); td(inp);
+    const cp = document.createElement("button"); cp.className = "link"; cp.textContent = "Copy";
+    cp.onclick = async () => { try{ await navigator.clipboard.writeText(inp.value); cp.textContent = "Copied"; }catch{ inp.focus(); } setTimeout(() => cp.textContent = "Copy", 1500); };
+    const wt = document.createElement("button"); wt.className = "link"; wt.textContent = "Watch live";
+    wt.onclick = () => { open(i.code); scrollTo({ top: 0, behavior: "smooth" }); };
+    td(cp).append(" · ", wt);
+    tb.appendChild(tr);
+  }
+}
 $("btnOpen").onclick = () => { const c = normCode($("openCode").value); if (c) open(c); else $("openCode").focus(); };
 $("btnNew").onclick = () => { link?.close(); link = null; live = null; $("noSession").hidden = false; $("hasSession").hidden = true; store.set("dash_code", ""); renderAll(); ui(); };
 $("btnCopy").onclick = async () => {
@@ -325,7 +372,7 @@ function renderVerdict(){
 function renderAll(){
   document.querySelectorAll("[data-view]").forEach(b => b.setAttribute("aria-pressed", b.dataset.view === view));
   $("viewNote").textContent = VIEW_NOTE[view];
-  renderVerdict(); renderCmp(); renderTable(); renderZones(); drawCharts($("charts"), viewRows()); renderFeed();
+  renderVerdict(); renderCmp(); renderTable(); renderZones(); drawCharts($("charts"), viewRows()); renderFeed(); renderInvites();
 }
 
 $("btnPng").onclick = () => { drawCharts($("charts"), viewRows(), true); $("charts").toBlob(b => { if (b) download(`focusback_charts_${view}.png`, b); drawCharts($("charts"), viewRows()); }, "image/png"); };

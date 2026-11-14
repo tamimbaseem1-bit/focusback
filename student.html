@@ -50,6 +50,17 @@
 #sv .acts .btn{padding:16px 26px;font-size:18px;min-height:60px;border-radius:14px}
 #svStop{position:absolute;top:20px;right:20px}
 #svTag{position:absolute;top:20px;left:20px}
+/* Participant link: Arabic guide, welcome screen */
+.guide{direction:rtl;text-align:right;font-family:var(--ar);background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;font-size:16px;line-height:1.7}
+.guide b{display:block;font-size:13px;color:var(--muted);font-weight:500;margin-bottom:2px}
+.guide.warn{border-color:var(--nudge);background:var(--lamp)}
+#welcome{position:fixed;inset:0;z-index:30;background:radial-gradient(1100px 700px at 72% 18%,#16a35f 0%,#0a5a33 45%,#05301b 100%) fixed,#05301b;font-family:var(--ar);overflow:auto;direction:rtl;text-align:right}
+#welcome .in{max-width:560px;margin:0 auto;padding:28px 20px 40px;display:flex;flex-direction:column;gap:16px;font-size:16px;line-height:1.8}
+#welcome h1{font-size:24px;margin:0}
+#welcome ol{margin:0;padding-inline-start:22px;display:flex;flex-direction:column;gap:6px}
+#welcome .box{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:var(--surface)}
+#welcome .try{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
+#btnFocused small{display:block;font-size:12px;font-weight:400;opacity:.8}
 </style>
 </head>
 <body>
@@ -58,6 +69,36 @@
   <button class="pill" id="linkPill" role="status" style="cursor:pointer;min-height:40px"><i></i><span id="linkTxt">Enter teacher code</span></button>
   <span class="pill" id="modelPill" role="status"><i></i><span id="modelTxt">Loading face model…</span></span>
 </header>
+
+<div id="welcome" hidden>
+  <div class="in">
+    <h1>أهلاً بك في تجربة FocusBack</h1>
+    <p>شكراً لمشاركتك. التجربة تاخذ حوالي <b>20 دقيقة</b>، وفيها ثلاث مهام: قراءة، ثم كتابة، ثم استماع. في كل مهمة جولتين قصيرتين تتبع فيهما التعليمات اللي تظهر وتُقال لك.</p>
+    <div class="box"><b>جهّز قبل ما تبدأ:</b>
+      <ol>
+        <li>كتاب تقرأ فيه.</li>
+        <li>دفتر وقلم.</li>
+        <li>للاستماع: مقطع تعليمي أو محاضرة تشغّلها على <b>جهاز ثاني</b> (تلفزيون، لابتوب، جوال ثاني).</li>
+        <li>مكان هادئ وإضاءة جيدة على وجهك.</li>
+      </ol>
+    </div>
+    <div class="box"><b>مكان الجهاز:</b>
+      <ol>
+        <li>حط الجهاز قدامك ثابت (على حامل أو مسنود)، والكاميرا الأمامية تشوف وجهك.</li>
+        <li>لازم وجهك يبان كامل <b>حتى لما تنزل راسك للدفتر</b>. ارفع الجهاز أو أبعده شوي إذا احتجت.</li>
+        <li>اجلس بنفس الطريقة طول المهمة، وخصوصاً وقت المعايرة.</li>
+      </ol>
+    </div>
+    <div class="box"><b>الخصوصية:</b> الفيديو يبقى على جهازك، ما يُحفظ ولا يُرسل. اللي ينحفظ أرقام فقط (مثل عدد التنبيهات) تحت رمزك <b id="wPid">P01</b>، بدون اسمك.</div>
+    <div class="box try">
+      <p>أثناء التجربة إذا جاك تنبيه <b>وأنت فعلاً تشتغل على مهمتك</b>، اضغط هذا الزر. وإذا كنت فعلاً مشتت، ارجع لمهمتك بس، بدون ما تضغط شي.</p>
+      <p>جرّب الزر الحين:</p>
+      <button class="btn main big" id="wTry"><svg class="i lg" aria-hidden="true"><use href="#i-check"/></svg>كنت مركّزاً</button>
+      <p class="note" id="wTryNote"></p>
+    </div>
+    <button class="btn main big wide" id="wGo" disabled><span>جرّب الزر أولاً</span></button>
+  </div>
+</div>
 
 <main class="solo">
   <div class="seg" role="group" aria-label="Task">
@@ -79,6 +120,7 @@
     <li id="stR2"><button id="chipR2"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Round 2</button></li>
   </ol>
 
+  <div class="guide" id="guide" hidden role="status"><b id="guideStep"></b><span id="guideTxt"></span></div>
   <button class="btn main big wide" id="btnGo"><svg class="i lg" aria-hidden="true"><use href="#i-camera"/></svg><span>Start camera</span></button>
   <p class="hint" id="hint" role="status"></p>
 
@@ -129,12 +171,12 @@
   <p id="svMsg">You’re on track.</p>
   <p id="svSub">Only you can see this screen.</p>
   <div class="acts" id="svBtns" hidden>
-    <button class="btn main" id="btnFocused"><svg class="i lg" aria-hidden="true"><use href="#i-check"/></svg>I was focused</button>
+    <button class="btn main" id="btnFocused"><svg class="i lg" aria-hidden="true"><use href="#i-check"/></svg><span>كنت مركّزاً<small>I was focused</small></span></button>
   </div>
 </div>
 
 <script type="module">
-import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link, sheetOn, sheetQueue, sheetFlush, sheetWaiting, rowId } from "./common.js?v=1794410000";
+import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link, sheetOn, sheetQueue, sheetFlush, sheetWaiting, rowId } from "./common.js?v=1794420000";
 
 const $ = id => document.getElementById(id);
 const now = () => performance.now();
@@ -164,6 +206,18 @@ let phase = store.get("phase", "pilot");
 // so the next session starts where the last one stopped: no calibration, no rounds.
 let mode = store.get("mode", "study");
 let learned = store.get("learned", {});         // learned[pid][task] = {up, down, left, right}
+// Participant link (student.html?code=FB-1234&pid=P03&phase=final): the participant is alone, so the page fixes
+// the code, phase and mode from the link, hides Settings, and guides every step in Arabic.
+const QS = new URLSearchParams(location.search);
+const guided = /^P\d{1,3}$/i.test(QS.get("pid") || "");
+if (guided){
+  store.set("pid", QS.get("pid").toUpperCase());
+  phase = QS.get("phase") === "pilot" ? "pilot" : "final"; store.set("phase", phase);
+  mode = "study"; store.set("mode", "study");
+}
+const T = (en, ar) => guided ? ar : en;
+let needRecal = false, setupMsgAr = "", lastSheet = null;
+const TASK_AR = { reading: "القراءة", writing: "الكتابة", listening: "الاستماع" };
 const USE_TEXT = { reading: "اقرأ في كتابك", writing: "اكتب في دفترك", listening: "استمع إلى المتحدث" };          // "pilot" or "final": every round is tagged, results use one phase
 let pose = { p:0, y:0, face:true }, simPose = { p:0, y:0 };
 let camState = "off", modelState = "loading", landmarker = null;
@@ -295,7 +349,7 @@ function stepCalib(t){
   if (ok){
     calibs[pid()] ??= {};
     calibs[pid()][task] = { p: median(calib.samples.map(s => s.p)), y: median(calib.samples.map(s => s.y)) };
-    store.set("calibs", calibs); stepTone(); emit("calibrated");
+    store.set("calibs", calibs); stepTone(); emit("calibrated"); needRecal = false; setupMsgAr = "";
   }
   calib = null; ui();
   if (!ok) $("hint").textContent = "The face was not visible during calibration. Check the camera angle, then calibrate again.";
@@ -308,15 +362,16 @@ const phaseOf = s => s.phase || "pilot";   // rounds saved before phases existed
 const doneFor = (t, r) => sessions.some(s => s.pid === pid() && s.task === t && s.round === r && s.completed && !!s.demo === demo() && phaseOf(s) === phase);
 const doneRound = r => doneFor(task, r);
 function nextAction(){
-  if (calib) return { label:"Calibrating…", icon:"target", go:null };
-  if (camState !== "on" && !demoChosen) return { label:"Start camera", icon:"camera", go:() => $("btnCam").click() };
-  if (!base()) return { label:"Calibrate · 20 s", icon:"target", go:calibrate };
+  if (calib) return { label:T("Calibrating…", "جارٍ المعايرة…"), icon:"target", go:null };
+  if (camState !== "on" && !demoChosen) return { label:T("Start camera", "شغّل الكاميرا"), icon:"camera", go:() => $("btnCam").click() };
+  if (!base()) return { label:T("Calibrate · 20 s", "المعايرة · 20 ثانية"), icon:"target", go:calibrate };
+  if (needRecal) return { label:T("Recalibrate · 20 s", "أعد المعايرة · 20 ثانية"), icon:"target", go:calibrate };
   if (mode === "use") return { label:"Start " + TASK_LABEL[task], icon:"play", go:startUse };
-  if (!doneRound(1)) return { label:"Start Round 1 · no learning", icon:"play", go:() => startRound(1) };
-  if (!doneRound(2)) return { label:"Start Round 2 · with learning", icon:"play", go:() => startRound(2) };
+  if (!doneRound(1)) return { label:T("Start Round 1 · no learning", "ابدأ الجولة الأولى"), icon:"play", go:() => startRound(1) };
+  if (!doneRound(2)) return { label:T("Start Round 2 · with learning", "ابدأ الجولة الثانية"), icon:"play", go:() => startRound(2) };
   const nxt = ["reading","writing","listening"].find(t => !(doneFor(t, 2)));
-  return nxt ? { label:"Next task: " + TASK_LABEL[nxt], icon:"arrow", go:() => { task = nxt; ui(); sendLive(true); } }
-             : { label:"All tasks done · see the dashboard", icon:"check", go:null, done:true };
+  return nxt ? { label:T("Next task: " + TASK_LABEL[nxt], "المهمة التالية: " + TASK_AR[nxt]), icon:"arrow", go:() => { task = nxt; ui(); sendLive(true); } }
+             : { label:T("All tasks done · see the dashboard", "انتهيت من التجربة ✓"), icon:"check", go:null, done:true };
 }
 $("btnGo").onclick = () => { const a = nextAction(); a.go && a.go(); };
 $("chipCal").onclick = () => calibrate();
@@ -395,6 +450,12 @@ function checkSetup(t){
             : "";
   if (!msg) return;
   run.q.warned = true; emit("setup_warning", { lost_pct: Math.round(100*lostShare), out_pct: Math.round(100*out) });
+  if (guided){
+    // Nobody is there to fix it: stop now (a stopped round never counts), explain, and ask for a new calibration.
+    setupMsgAr = lostShare > .3 ? "الكاميرا ما كانت تشوف وجهك أغلب الوقت. ارفع الجهاز أو أبعده شوي بحيث يبان وجهك كامل، حتى لما تنزل راسك."
+                                : "طريقة جلوسك أثناء المهمة كانت مختلفة عن وقت المعايرة. أعد المعايرة وأنت جالس بنفس الطريقة اللي بتكمل فيها المهمة.";
+    needRecal = true; endRound(false); return;
+  }
   if (run.state !== "alert") $("svSub").textContent = msg;
 }
 function pct(a, q){ if (!a.length) return null; const s = [...a].sort((x,y)=>x-y); return s[Math.min(s.length-1, Math.max(0, Math.round(q*(s.length-1))))]; }
@@ -428,10 +489,10 @@ function endRound(finished){
                  lostPct: Math.round(100*run.lostMs/Math.max(1, t - run.start)), autoClosed: run.q.autoClosed } } };
   row.id = rowId(row);
   sessions.push(row); store.set("sessions", sessions);
-  if (!row.demo) sheetQueue([row]).then(sheetUi);
+  if (!row.demo) sheetQueue([row]).then(r => { lastSheet = r; sheetUi(r); ui(); });
   emit("round_end", { row });
   run = null; sendResults(); sendLive(true);
-  $("svMsg").textContent = finished ? "Round finished. Thank you!" : "Round stopped."; $("svSub").textContent = ""; $("svBtns").hidden = true;
+  $("svMsg").textContent = finished ? T("Round finished. Thank you!", "انتهت الجولة، شكراً لك!") : T("Round stopped.", "توقفت الجولة."); $("svSub").textContent = ""; $("svBtns").hidden = true;
   setTimeout(() => { if (!run){ $("sv").hidden = true; hideAlert(); } }, 2500);
   ui();
 }
@@ -479,12 +540,12 @@ function raiseAlert(t){
   run.state = "alert"; run.alertAt = t; run.lastNudgeAt = t; run.nudges = 1; run.inSince = null;
   run.alerts.push({ at: t, buf: run.offBuf.slice(), k: run.segs[run.i]?.k });
   emit("alert", { off_s: +(run.offMs/1000).toFixed(1) });
-  $("svMsg").textContent = "Quick check: back to your task?";
-  $("svSub").textContent = "Just go back to it. If you were already working, tap “I was focused”.";
+  $("svMsg").textContent = T("Quick check: back to your task?", "تنبيه بسيط: هل رجعت لمهمتك؟");
+  $("svSub").textContent = T("Just go back to it. If you were already working, tap “I was focused”.", "ارجع لمهمتك. وإذا كنت أصلاً تشتغل عليها، اضغط «كنت مركّزاً».");
   $("svBtns").hidden = false; flash();
 }
 function flash(){ const sv = $("sv"); sv.classList.remove("alerting"); void sv.offsetWidth; sv.classList.add("alerting"); softAlert(); }
-function hideAlert(){ $("sv").classList.remove("alerting"); $("svBtns").hidden = true; $("svMsg").textContent = "You’re on track."; $("svSub").textContent = "Only you can see this screen."; }
+function hideAlert(){ $("sv").classList.remove("alerting"); $("svBtns").hidden = true; $("svMsg").textContent = T("You’re on track.", "أنت على المسار."); $("svSub").textContent = T("Only you can see this screen.", "تابع التعليمات المكتوبة فوق."); }
 $("btnFocused").onclick = () => {
   if (run?.state !== "alert") return;
   run.focused++; const a = run.alerts[run.alerts.length - 1]; a.focused = true;
@@ -556,7 +617,8 @@ window.FB_state = () => run && { k: run.segs[run.i]?.k, i: run.i, state: run.sta
 window.FB_sim = (dy, dp) => { const b = zone().base; simPose = { y: b.y + dy, p: b.p + dp }; };   // used by the demo and tests
 
 // ---------- ui ----------
-function ui(){
+function ui(){ uiMain(); guide(); }
+function uiMain(){
   document.querySelectorAll("[data-task]").forEach(b => { b.setAttribute("aria-pressed", b.dataset.task === task); b.disabled = !!(run || calib); });
   document.querySelectorAll("[data-mode]").forEach(b => { b.setAttribute("aria-pressed", b.dataset.mode === mode); b.disabled = !!(run || calib); });
   const use = mode === "use";
@@ -641,6 +703,46 @@ function loop(t){
 const saved = store.get("code", "");
 if (saved){ $("code").value = saved; }
 const qp = new URLSearchParams(location.search).get("code"); if (normCode(qp)){ $("code").value = normCode(qp); connect(normCode(qp)); }
+// ---------- participant link: welcome and Arabic guide ----------
+if (guided){
+  document.documentElement.classList.add("guided");
+  $("more").hidden = true; $("btnDemo").style.display = "none"; $("guide").hidden = false; $("hint").hidden = true;
+  $("svStop").textContent = "إيقاف";
+  document.querySelector(".privacy").textContent = "الفيديو يبقى على جهازك، ما يُحفظ ولا يُرسل.";
+  task = ["reading","writing","listening"].find(t => !doneFor(t, 2)) || "listening";
+  $("wPid").textContent = pid();
+  if (!store.get("welcomed_" + pid(), false)) $("welcome").hidden = false;
+  $("wTry").onclick = () => { $("wTryNote").textContent = "ممتاز! بس كذا. وإذا ما جاك تنبيه، ما تحتاج تضغط شي."; const g = $("wGo"); g.disabled = false; g.querySelector("span").textContent = "ابدأ"; softAlert(); };
+  $("wGo").onclick = () => { store.set("welcomed_" + pid(), true); $("welcome").hidden = true; try{ speechSynthesis.speak(new SpeechSynthesisUtterance("")); }catch{} ui(); };
+}
+let guideRetry = null;
+function guide(){
+  if (!guided) return;
+  const a = nextAction(), n = ["reading","writing","listening"].indexOf(task) + 1, d1 = doneRound(1), d2 = doneRound(2);
+  const obj = task === "reading" ? "الكتاب" : task === "writing" ? "الدفتر" : "المقطع التعليمي";
+  $("guideStep").textContent = a.done ? "انتهت التجربة" : `المهمة ${n} من 3 · ${TASK_AR[task]}`;
+  const w = sheetWaiting();
+  const txt = a.done ? (w ? `شكراً لك! انتهيت من التجربة. باقي إرسال ${w} من النتائج… لا تقفل الصفحة الحين.` : "شكراً لك! انتهيت من التجربة كاملة، ونتائجك انحفظت ✓ تقدر تقفل الصفحة.")
+    : camState === "error" ? "المتصفح منع الكاميرا. اضغط رمز القفل جنب الرابط فوق، واسمح بالكاميرا، ثم حدّث الصفحة."
+    : camState !== "on" && !demoChosen ? "حط الجهاز قدامك، ثم اضغط «شغّل الكاميرا» واسمح للمتصفح باستخدامها."
+    : modelState === "error" && !demoChosen ? "تعذّر تحميل النظام. تأكد من الإنترنت، ثم حدّث الصفحة."
+    : modelState !== "ready" && !demoChosen ? "لحظات… يتم تجهيز النظام."
+    : calib ? `استمر بالنظر إلى ${obj} بشكل طبيعي، ولا تتحرك كثيراً…`
+    : needRecal ? setupMsgAr + " بعدها اضغط «أعد المعايرة»."
+    : !base() ? (task === "listening" ? "شغّل المقطع التعليمي على الجهاز الثاني، واجلس كما تستمع عادة. اضغط «المعايرة» وانظر للمقطع 20 ثانية."
+               : task === "writing" ? "افتح دفترك وامسك القلم، واجلس كما تكتب عادة. اضغط «المعايرة» واكتب في الدفتر 20 ثانية."
+               : "افتح كتابك واجلس كما تقرأ عادة. اضغط «المعايرة» واقرأ 20 ثانية بشكل طبيعي.")
+    : !d1 ? "ممتاز. الحين الجولة الأولى (أقل من 3 دقائق). تابع التعليمات اللي تظهر وتُسمع على الشاشة."
+    : !d2 ? "انتهت الجولة الأولى. الحين الجولة الثانية، بنفس الطريقة."
+    : `أحسنت! خلّصت مهمة ${TASK_AR[task]}. اضغط الزر للانتقال للمهمة التالية.`;
+  $("guideTxt").textContent = txt;
+  $("guide").classList.toggle("warn", needRecal || camState === "error" || modelState === "error" || (a.done && w > 0));
+  ["chipCal","chipR1","chipR2"].forEach(id => $(id).disabled = true);
+  $("linkPill").hidden = !(link && Date.now() - dashSeen < 10000);
+  document.querySelectorAll("[data-task]").forEach(b => b.disabled = true);
+  if (a.done && w && !guideRetry) guideRetry = setTimeout(() => { guideRetry = null; sheetFlush().then(r => { lastSheet = r; ui(); }); }, 10000);
+}
+
 ui(); requestAnimationFrame(loop);
 </script>
 </body>

@@ -11,6 +11,10 @@ Live: https://tamimbaseem1-bit.github.io/focusback/
 
 The pages are linked by the session code. Only numbers and events travel, through a public MQTT broker (HiveMQ) or BroadcastChannel when both pages are open in one browser. Video is analysed on the student device (MediaPipe Face Landmarker) and is never saved or sent.
 
+## Participant links (participants on their own)
+
+On the dashboard, **Participant links → New link** makes one link per participant (next free code P01, P02…, its own session code, Final or Pilot). The participant opens it on their own device: an Arabic welcome screen (what to prepare, where to put the device, privacy, a practice tap on «كنت مركّزاً»), then an Arabic guide through calibration and both rounds of all three tasks. No settings, no Demo. If the face is often lost or the posture differs from the calibration, the round stops by itself (not counted) and asks for a new calibration. The dashboard shows each link's progress (rounds done of 6) and can watch it live.
+
 ## Results sheet
 
 Every finished round (not Demo, not everyday use) is also saved to a Google Sheet you own, so results from every device are in one place and the dashboard shows them all. Only numbers and codes travel; video never leaves the device. If the internet is down, rounds wait on the device and are sent later. Setup: `sheet/SETUP.md`.

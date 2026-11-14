@@ -9,9 +9,9 @@ export const ROUND_LABEL = { 1: "Round 1 · no learning", 2: "Round 2 · with le
 // on = doing the task · off = truly off-task · test = natural on-task movement that tempts a false nudge.
 // Each cycle has two natural-movement steps, so Round 2 has room to show what it learned,
 // without making the round longer (54 s per cycle, about 2.7 min per round).
-const T_READ = "دوّن ملاحظة في الدفتر الذي بجانبك. إذا جاءك تنبيه وأنت تعمل، اضغط «I was focused»";
-const T_WRITE = "ارفع رأسك وفكّر في الجملة التالية، ثم أكمل. إذا جاءك تنبيه وأنت تعمل، اضغط «I was focused»";
-const T_LISTEN = "اكتب ملاحظة سريعة عن الشرح. إذا جاءك تنبيه وأنت تعمل، اضغط «I was focused»";
+const T_READ = "دوّن ملاحظة في الدفتر الذي بجانبك. إذا جاءك تنبيه وأنت تعمل، اضغط «كنت مركّزاً»";
+const T_WRITE = "ارفع رأسك وفكّر في الجملة التالية، ثم أكمل. إذا جاءك تنبيه وأنت تعمل، اضغط «كنت مركّزاً»";
+const T_LISTEN = "اكتب ملاحظة سريعة عن الشرح. إذا جاءك تنبيه وأنت تعمل، اضغط «كنت مركّزاً»";
 export const SCRIPTS = {
   reading: [
     { k: "on",   d: 12000, s: "اقرأ في الكتاب كعادتك" },
