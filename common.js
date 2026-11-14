@@ -1,6 +1,6 @@
 // FocusBack shared code: tasks, scripted tests, scoring, the session-code link and the result charts.
 
-import { SHEET_URL, SHEET_KEY } from "./config.js?v=1";
+import { SHEET_URL, SHEET_KEY } from "./config.js?v=2";
 export const TASKS = ["reading", "writing", "listening"];
 export const TASK_LABEL = { reading: "Reading", writing: "Writing", listening: "Listening" };
 export const ROUND_LABEL = { 1: "Round 1 · no learning", 2: "Round 2 · with learning" };
