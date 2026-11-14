@@ -102,6 +102,7 @@
         <button class="btn" id="btnLink"><span>Connect</span></button>
       </div>
       <p class="note" id="linkNote">Optional. Get the code from the Teacher / Parent dashboard.</p>
+      <div><span class="note" id="sheetTxt"></span> <button class="link" id="btnSheetAll">Send saved rounds to the sheet</button></div>
       <div id="studyBox" class="set" style="padding:0">
       <div class="field">Study phase
         <div class="seg" role="group" aria-label="Study phase">
@@ -133,7 +134,7 @@
 </div>
 
 <script type="module">
-import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link } from "./common.js?v=1794297000";
+import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link, sheetOn, sheetQueue, sheetFlush, sheetWaiting, rowId } from "./common.js?v=1794380000";
 
 const $ = id => document.getElementById(id);
 const now = () => performance.now();
@@ -391,7 +392,9 @@ function endRound(finished){
     learn: run.round === 2 ? { step: LEARN.STEP, cap: LEARN.CAP } : null,
     // Head-angle spread (5th–95th percentile, degrees from the centre) per script step type: the evidence for the task zones.
     spread: { on: spread(run.poses.on), test: spread(run.poses.test), off: spread(run.poses.off) } };
+  row.id = rowId(row);
   sessions.push(row); store.set("sessions", sessions);
+  if (!row.demo) sheetQueue([row]).then(sheetUi);
   emit("round_end", { row });
   run = null; sendResults(); sendLive(true);
   $("svMsg").textContent = finished ? "Round finished. Thank you!" : "Round stopped."; $("svSub").textContent = ""; $("svBtns").hidden = true;
@@ -465,6 +468,20 @@ function adapt(buf){
   const grow = (cur, need) => need > cur ? Math.min(LEARN.CAP, cur + LEARN.STEP, need + LEARN.MARGIN) : cur;
   t.up = grow(t.up, dp); t.down = grow(t.down, -dp); t.right = grow(t.right, dy); t.left = grow(t.left, -dy);
 }
+
+// ---------- results sheet ----------
+function sheetUi(r){
+  const w = sheetWaiting();
+  $("sheetTxt").textContent = !sheetOn ? "Results sheet: not set up yet (rounds stay on this device)."
+    : r && !r.ok ? `Results sheet: can’t reach it now · ${w} round${w === 1 ? "" : "s"} waiting, will retry.`
+    : w ? `Results sheet: ${w} round${w === 1 ? "" : "s"} waiting to send.`
+    : r ? "Results sheet: all finished rounds are saved." : "Results sheet: connected. Finished rounds are sent automatically.";
+  $("btnSheetAll").hidden = !sheetOn;
+}
+$("btnSheetAll").onclick = async () => { $("sheetTxt").textContent = "Sending…"; const r = await sheetQueue(sessions); sheetUi(r); if (r.ok) $("sheetTxt").textContent += ` (${r.added} new)`; };
+sheetUi(); if (sheetWaiting()) sheetFlush().then(sheetUi);
+addEventListener("online", () => sheetFlush().then(sheetUi));
+setInterval(() => { if (sheetWaiting()) sheetFlush().then(sheetUi); }, 60000);
 
 // ---------- mode ----------
 document.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { if (run || calib) return; mode = b.dataset.mode; store.set("mode", mode); ui(); sendLive(true); });

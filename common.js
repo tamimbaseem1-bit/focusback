@@ -1,5 +1,6 @@
 // FocusBack shared code: tasks, scripted tests, scoring, the session-code link and the result charts.
 
+import { SHEET_URL, SHEET_KEY } from "./config.js?v=1";
 export const TASKS = ["reading", "writing", "listening"];
 export const TASK_LABEL = { reading: "Reading", writing: "Writing", listening: "Listening" };
 export const ROUND_LABEL = { 1: "Round 1 · no learning", 2: "Round 2 · with learning" };
@@ -214,3 +215,43 @@ export const SPRITE = `<svg xmlns="http://www.w3.org/2000/svg" style="display:no
 export function mountIcons(){ if (!document.getElementById("i-check")) document.body.insertAdjacentHTML("afterbegin", SPRITE); }
 export const icon = (name, cls = "") => `<svg class="i ${cls}" aria-hidden="true" focusable="false"><use href="#i-${name}"/></svg>`;
 mountIcons();
+
+// ---------- results sheet (Google Sheets) ----------
+// Finished rounds go to an outbox on this device first, then to the sheet. If the internet is down they wait
+// and are sent later. The sheet skips rows it already has (same id), so sending twice is safe.
+export const sheetOn = !!SHEET_URL;
+export const rowId = r => r.id || `${r.pid}-${r.task}-r${r.round}-${r.startedAt}`;
+export const sheetWaiting = () => store.get("outbox", []).length;
+export function sheetQueue(rows) {
+  const ob = store.get("outbox", []), have = new Set(ob.map(r => r.id));
+  for (const r of rows) { if (!r || r.demo || r.round === "use") continue; const x = { ...r, id: rowId(r) }; if (!have.has(x.id)) { ob.push(x); have.add(x.id); } }
+  store.set("outbox", ob);
+  return sheetFlush();
+}
+let flushing = null;
+export function sheetFlush() {
+  if (!sheetOn) return Promise.resolve({ ok: false, off: true, waiting: sheetWaiting() });
+  if (flushing) return flushing;
+  flushing = (async () => {
+    let added = 0;
+    try {
+      for (let guard = 0; guard < 20; guard++) {
+        const ob = store.get("outbox", []); if (!ob.length) break;
+        const res = await fetch(SHEET_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ key: SHEET_KEY, rows: ob.slice(0, 40) }) });
+        const j = await res.json(); if (!j.ok) throw new Error(j.error || "sheet error");
+        const done = new Set(j.ids || []); added += j.added || 0;
+        store.set("outbox", store.get("outbox", []).filter(r => !done.has(r.id)));
+        if (!done.size) break;
+      }
+      return { ok: true, added, waiting: sheetWaiting() };
+    } catch (e) { return { ok: false, added, error: String(e.message || e), waiting: sheetWaiting() }; }
+  })().finally(() => { flushing = null; });
+  return flushing;
+}
+export async function sheetLoad() {
+  if (!sheetOn) return null;
+  const res = await fetch(SHEET_URL + "?key=" + encodeURIComponent(SHEET_KEY));
+  const j = await res.json(); if (!j.ok) throw new Error(j.error || "sheet error");
+  return j.rows.filter(r => r && r.id).map(r => ({ ...r, round: Number(r.round), completed: r.completed === true || r.completed === "TRUE", demo: r.demo === true || r.demo === "TRUE" }));
+}

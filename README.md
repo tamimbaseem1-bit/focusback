@@ -11,6 +11,10 @@ Live: https://tamimbaseem1-bit.github.io/focusback/
 
 The pages are linked by the session code. Only numbers and events travel, through a public MQTT broker (HiveMQ) or BroadcastChannel when both pages are open in one browser. Video is analysed on the student device (MediaPipe Face Landmarker) and is never saved or sent.
 
+## Results sheet
+
+Every finished round (not Demo, not everyday use) is also saved to a Google Sheet you own, so results from every device are in one place and the dashboard shows them all. Only numbers and codes travel; video never leaves the device. If the internet is down, rounds wait on the device and are sent later. Setup: `sheet/SETUP.md`.
+
 ## Two modes (Settings on the student page)
 
 - **Study · rounds**: the scripted experiment below. Every round starts fresh from the default zone, so Round 1 and Round 2 can be compared fairly.

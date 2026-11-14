@@ -64,7 +64,8 @@ details.more > summary{cursor:pointer;padding:16px 20px;min-height:44px;color:va
 details.more[open] > summary{border-bottom:1px solid var(--line)}
 details.more .cardhead{border-top:1px solid var(--line)}
 .state.on{border-color:var(--zone);color:var(--brand)}
-.viewbar{padding:0 20px 12px;max-width:520px}
+.viewbar{padding:0 20px 12px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+.viewbar .seg{flex:0 1 520px}
 </style>
 </head>
 <body>
@@ -117,7 +118,7 @@ details.more .cardhead{border-top:1px solid var(--line)}
       <button data-view="session" aria-pressed="true">This session</button>
       <button data-view="final" aria-pressed="false">Final study</button>
       <button data-view="pilot" aria-pressed="false">Pilot</button>
-    </div></div>
+    </div><span class="note" id="sheetTxt"></span> <button class="link" id="btnSheetAll" hidden>Send this dashboard’s rounds to the sheet</button></div>
     <div class="verdict" id="verdict"></div>
     <div id="chartWrap"><canvas id="charts" width="1500" height="560" aria-label="Round 1 and Round 2 results"></canvas></div>
   </section>
@@ -132,7 +133,7 @@ details.more .cardhead{border-top:1px solid var(--line)}
       <div class="cardhead"><div><h2>Task zones from the data</h2><p class="note">95th percentile of head angle from the calibration centre (degrees), median over finished rounds. “On task” = steady work · “Natural movement” = the test steps. Use On task to set each task’s default zone.</p></div></div>
       <div class="tablewrap"><table id="zoneTbl"><thead><tr><th>Task</th><th>Rounds</th><th>Steps</th><th>Up</th><th>Down</th><th>Left</th><th>Right</th></tr></thead><tbody></tbody></table></div>
     </div>
-    <div class="cardhead" id="clearRow" hidden><div><h2>Pilot data</h2><p class="note" id="clearNote">Deletes pilot rounds stored on this dashboard. Download the CSV first. Clear the student device too (Settings on the student page).</p></div><button class="btn" id="btnClearPilot">Clear pilot data</button></div>
+    <div class="cardhead" id="clearRow" hidden><div><h2>Pilot data</h2><p class="note" id="clearNote">Deletes pilot rounds stored on this dashboard (the results sheet keeps its copy; delete rows there by hand if needed). Download the CSV first. Clear the student device too (Settings on the student page).</p></div><button class="btn" id="btnClearPilot">Clear pilot data</button></div>
     <div class="cardhead"><div><h2>Activity</h2></div></div>
     <div class="feed" id="feed"></div><div class="empty" id="emptyF">Events appear here during a round.</div>
   </details>
@@ -141,21 +142,27 @@ details.more .cardhead{border-top:1px solid var(--line)}
 </div>
 
 <script type="module">
-import { TASKS, TASK_LABEL, ROUND_LABEL, aggregate, counts, phaseOf, zoneEvidence, drawCharts, csv, download, store, normCode, newCode, Link } from "./common.js?v=1794297000";
+import { TASKS, TASK_LABEL, ROUND_LABEL, aggregate, counts, phaseOf, zoneEvidence, drawCharts, csv, download, store, normCode, newCode, Link, sheetOn, sheetLoad, sheetQueue, rowId } from "./common.js?v=1794380000";
 const $ = id => document.getElementById(id);
 
 let link = null, live = null, liveAt = 0;
-let rows = store.get("dash_rows", []);
+let rows = store.get("dash_rows", []);          // rounds received live by this dashboard
+let sheetRows = [], sheetAt = 0, sheetErr = ""; // rounds from the Google Sheet (every device)
+// Everything known: this dashboard's rounds plus the sheet's, one copy of each round.
+function all(){
+  const seen = new Set(rows.map(rowId));
+  return rows.concat(sheetRows.filter(r => !seen.has(rowId(r))));
+}
 let events = store.get("dash_events", []);
 // Which results are shown: this session only (what a teacher or parent should see), or the whole study, by phase.
 let view = store.get("dash_view", "session");
 function viewRows(){
-  if (view === "session") return link ? rows.filter(r => r.code === link.code) : [];
-  return rows.filter(r => phaseOf(r) === view);
+  if (view === "session") return link ? all().filter(r => r.code === link.code) : [];
+  return all().filter(r => phaseOf(r) === view);
 }
 const VIEW_NOTE = {
   session: "This session only. Success: fewer wrong alerts in Round 2, while real off-task is still caught.",
-  final: "Final study: all finished rounds of real participants on this dashboard.",
+  final: "Final study: all finished rounds of real participants (this dashboard and the results sheet).",
   pilot: "Pilot: practice rounds, kept out of the final results.",
 };
 document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => { view = b.dataset.view; store.set("dash_view", view); renderAll(); });
@@ -182,7 +189,7 @@ function onMsg(topic, msg){
   if (topic === "live"){ live = msg; liveAt = Date.now(); if (!msg.teacher) $("support").hidden = true; ui(); }
   else if (topic === "results"){ mergeRows(msg.rows || []); }
   else if (topic === "event"){
-    if (msg.type === "round_end" && msg.row) mergeRows([msg.row]);
+    if (msg.type === "round_end" && msg.row){ mergeRows([msg.row]); setTimeout(loadSheet, 5000); }
     if (msg.type === "teacher_support"){ $("supportTxt").textContent = `${msg.pid} did not return to ${TASK_LABEL[msg.task] || "the task"} after two private alerts.`; $("support").hidden = false; }
     if (["alert","alert_repeat","returned","i_was_focused","teacher_support","tracking_lost","tracking_restored","round_start","round_end","session_start","session_end","calibrated"].includes(msg.type)){
       const e = { ts: msg.ts || Date.now(), code: link?.code, pid: msg.pid, task: msg.task, round: msg.round, demo: msg.demo, type: msg.type,
@@ -191,6 +198,23 @@ function onMsg(topic, msg){
     }
   }
 }
+// ---------- results sheet ----------
+async function loadSheet(){
+  if (!sheetOn) return sheetUi();
+  try{ sheetRows = await sheetLoad(); sheetAt = Date.now(); sheetErr = ""; }
+  catch(e){ sheetErr = "can’t reach it now"; }
+  sheetUi(); renderAll();
+}
+function sheetUi(){
+  $("btnSheetAll").hidden = !sheetOn;
+  $("sheetTxt").textContent = !sheetOn ? "Results sheet: not set up yet."
+    : sheetErr ? "Results sheet: " + sheetErr + "."
+    : sheetAt ? `Results sheet: ${sheetRows.length} round${sheetRows.length === 1 ? "" : "s"} · updated ${new Date(sheetAt).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" })}`
+    : "Results sheet: loading…";
+}
+$("btnSheetAll").onclick = async () => { $("sheetTxt").textContent = "Sending…"; const r = await sheetQueue(rows); await loadSheet(); if (r.ok) $("sheetTxt").textContent += ` · ${r.added} new sent`; else $("sheetTxt").textContent = "Results sheet: could not send, will retry."; };
+sheetUi(); loadSheet(); setInterval(loadSheet, 60000);
+
 function mergeRows(list){
   let changed = false;
   for (const r of list){
@@ -306,13 +330,13 @@ function renderAll(){
 $("btnPng").onclick = () => { drawCharts($("charts"), viewRows(), true); $("charts").toBlob(b => { if (b) download(`focusback_charts_${view}.png`, b); drawCharts($("charts"), viewRows()); }, "image/png"); };
 $("btnCsv").onclick = () => {
   // Every round on this dashboard, with its phase column, so nothing is lost; filter in the spreadsheet.
-  download("focusback_rounds.csv", new Blob([csv(rows)], { type:"text/csv" }));
+  download("focusback_rounds.csv", new Blob([csv(all())], { type:"text/csv" }));
   setTimeout(() => download("focusback_events.csv", new Blob([csv(events)], { type:"text/csv" })), 600);
 };
 
 const STATE = { on:["On task","on"], off:["Possible off-task","off"], alert:["Private alert sent","alert"], lost:["Tracking lost",""], idle:["Not in a round",""] };
 function ui(){
-  const quiet = !link && rows.length === 0; $("resCard").hidden = quiet; $("detCard").hidden = quiet;
+  const quiet = !link && all().length === 0; $("resCard").hidden = quiet; $("detCard").hidden = quiet;
   const lp = $("linkPill"), st = link?.status;
   const fresh0 = live && Date.now() - liveAt < 6000;
   lp.className = "pill " + (!link ? "" : fresh0 ? "ok" : st === "offline" ? "bad" : "warn");
