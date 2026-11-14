@@ -134,7 +134,7 @@
 </div>
 
 <script type="module">
-import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link, sheetOn, sheetQueue, sheetFlush, sheetWaiting, rowId } from "./common.js?v=1794400000";
+import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link, sheetOn, sheetQueue, sheetFlush, sheetWaiting, rowId } from "./common.js?v=1794410000";
 
 const $ = id => document.getElementById(id);
 const now = () => performance.now();
@@ -152,7 +152,7 @@ const TASK_TOL = {
 };
 // Round 2 learning: each "I was focused" widens only the side the head moved to, by at most STEP, never beyond CAP.
 const LEARN = { STEP:5, CAP:30, MARGIN:3 };
-const VERSION = "fb-2026.11.14";   // not a date, so the sheet keeps it as text
+const VERSION = "fb-2026.11.14-s2";   // s2 = script with two natural-movement steps per cycle   // not a date, so the sheet keeps it as text
 
 // ---------- state ----------
 let task = "reading";

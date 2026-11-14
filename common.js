@@ -7,24 +7,32 @@ export const ROUND_LABEL = { 1: "Round 1 · no learning", 2: "Round 2 · with le
 
 // Scripted test: the volunteer follows timed instructions, so the correct answer is known in advance.
 // on = doing the task · off = truly off-task · test = natural on-task movement that tempts a false nudge.
+// Each cycle has two natural-movement steps, so Round 2 has room to show what it learned,
+// without making the round longer (54 s per cycle, about 2.7 min per round).
+const T_READ = "دوّن ملاحظة في الدفتر الذي بجانبك. إذا جاءك تنبيه وأنت تعمل، اضغط «I was focused»";
+const T_WRITE = "ارفع رأسك وفكّر في الجملة التالية، ثم أكمل. إذا جاءك تنبيه وأنت تعمل، اضغط «I was focused»";
+const T_LISTEN = "اكتب ملاحظة سريعة عن الشرح. إذا جاءك تنبيه وأنت تعمل، اضغط «I was focused»";
 export const SCRIPTS = {
   reading: [
-    { k: "on",   d: 20000, s: "اقرأ في الكتاب كعادتك" },
+    { k: "on",   d: 12000, s: "اقرأ في الكتاب كعادتك" },
+    { k: "test", d: 10000, s: T_READ },
     { k: "off",  d: 12000, s: "انظر جانباً بعيداً عن الكتاب، وعُد للقراءة عند التنبيه" },
-    { k: "on",   d: 15000, s: "عُد إلى القراءة" },
-    { k: "test", d: 12000, s: "دوّن ملاحظة في الدفتر الذي بجانبك. إذا جاءك تنبيه وأنت تعمل، اضغط «I was focused»" },
+    { k: "on",   d: 10000, s: "عُد إلى القراءة" },
+    { k: "test", d: 10000, s: T_READ },
   ],
   writing: [
-    { k: "on",   d: 20000, s: "اكتب في الدفتر كعادتك" },
+    { k: "on",   d: 12000, s: "اكتب في الدفتر كعادتك" },
+    { k: "test", d: 10000, s: T_WRITE },
     { k: "off",  d: 12000, s: "توقف عن الكتابة وانظر جانباً، وعُد عند التنبيه" },
-    { k: "on",   d: 15000, s: "عُد إلى الكتابة" },
-    { k: "test", d: 12000, s: "ارفع رأسك وفكّر في الجملة التالية، ثم أكمل. إذا جاءك تنبيه وأنت تعمل، اضغط «I was focused»" },
+    { k: "on",   d: 10000, s: "عُد إلى الكتابة" },
+    { k: "test", d: 10000, s: T_WRITE },
   ],
   listening: [
-    { k: "on",   d: 20000, s: "انظر إلى المتحدث أو الشاشة واستمع" },
+    { k: "on",   d: 12000, s: "انظر إلى المتحدث أو الشاشة واستمع" },
+    { k: "test", d: 10000, s: T_LISTEN },
     { k: "off",  d: 12000, s: "انشغل بشيء جانبي، وعُد للاستماع عند التنبيه" },
-    { k: "on",   d: 15000, s: "عُد إلى الاستماع" },
-    { k: "test", d: 12000, s: "اكتب ملاحظة سريعة عن الشرح. إذا جاءك تنبيه وأنت تعمل، اضغط «I was focused»" },
+    { k: "on",   d: 10000, s: "عُد إلى الاستماع" },
+    { k: "test", d: 10000, s: T_LISTEN },
   ],
 };
 export const CYCLES = 3;
