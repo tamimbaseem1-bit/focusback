@@ -176,7 +176,7 @@
 </div>
 
 <script type="module">
-import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link, sheetOn, sheetQueue, sheetFlush, sheetWaiting, rowId } from "./common.js?v=1794420000";
+import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link, PROTOCOL, sheetOn, sheetQueue, sheetFlush, sheetWaiting, rowId } from "./common.js?v=1794430000";
 
 const $ = id => document.getElementById(id);
 const now = () => performance.now();
@@ -194,7 +194,8 @@ const TASK_TOL = {
 };
 // Round 2 learning: each "I was focused" widens only the side the head moved to, by at most STEP, never beyond CAP.
 const LEARN = { STEP:5, CAP:30, MARGIN:3 };
-const VERSION = "fb-2026.11.14-s2";   // s2 = script with two natural-movement steps per cycle   // not a date, so the sheet keeps it as text
+const VERSION = "fb-2026.11.15-" + PROTOCOL;   // s3: longer natural-movement steps, late "I was focused", clearer off-task steps
+const LATE_MS = 6000;   // after an alert is closed by a step change, "I was focused" still works this long   // not a date, so the sheet keeps it as text
 
 // ---------- state ----------
 let task = "reading";
@@ -434,8 +435,10 @@ function nextSeg(){
   // and start measuring the new step clean. An alert from a real off-task step stays until the student returns,
   // but never into the next off-task step, so each off-task step is measured on its own.
   if (run.state === "alert" && (run.alerts.at(-1)?.k !== "off" || seg.k === "off")){
-    run.alerts.at(-1).closed = true; run.q.autoClosed++;
+    const a = run.alerts.at(-1); a.closed = true; run.q.autoClosed++;
     run.state = "monitor"; run.nudges = 0; run.teacherSent = false; hideAlert();
+    // The student may not have had time to answer: keep «I was focused» open a few seconds (no glow, no sound).
+    if (a.k !== "off" && !a.focused){ run.late = { a, until: t + LATE_MS }; showLate(); }
   }
   if (run.state === "monitor"){ run.offMs = 0; run.offBuf = []; }
   if (seg.k === "off"){ run.open = { s: t, lost: 0 }; run.cooldownUntil = 0; }
@@ -500,6 +503,7 @@ $("svStop").onclick = () => endRound(false);
 
 function step(t){
   if (!run) return;
+  if (run.late && t >= run.late.until){ run.late = null; if (run.state === "monitor") hideAlert(); }
   const dt = Math.min(t - run.lastT, 500); run.lastT = t;
   const z = inZone();
   // Head angle relative to the centre, about 5 times a second, grouped by the script step (on / test / off).
@@ -536,7 +540,13 @@ function step(t){
     }
   }
 }
+function showLate(){
+  $("svMsg").textContent = T("Were you working just now?", "هل كنت تشتغل قبل شوي؟");
+  $("svSub").textContent = T("If the last alert was wrong, tap “I was focused”.", "إذا كان التنبيه الأخير غلط، اضغط «كنت مركّزاً».");
+  $("svBtns").hidden = false;
+}
 function raiseAlert(t){
+  run.late = null;
   run.state = "alert"; run.alertAt = t; run.lastNudgeAt = t; run.nudges = 1; run.inSince = null;
   run.alerts.push({ at: t, buf: run.offBuf.slice(), k: run.segs[run.i]?.k });
   emit("alert", { off_s: +(run.offMs/1000).toFixed(1) });
@@ -547,21 +557,26 @@ function raiseAlert(t){
 function flash(){ const sv = $("sv"); sv.classList.remove("alerting"); void sv.offsetWidth; sv.classList.add("alerting"); softAlert(); }
 function hideAlert(){ $("sv").classList.remove("alerting"); $("svBtns").hidden = true; $("svMsg").textContent = T("You’re on track.", "أنت على المسار."); $("svSub").textContent = T("Only you can see this screen.", "تابع التعليمات المكتوبة فوق."); }
 $("btnFocused").onclick = () => {
-  if (run?.state !== "alert") return;
-  run.focused++; const a = run.alerts[run.alerts.length - 1]; a.focused = true;
+  if (!run) return;
+  let a;
+  if (run.state === "alert") a = run.alerts[run.alerts.length - 1];
+  else if (run.late && now() < run.late.until && !run.late.a.focused){ a = run.late.a; a.late = true; }
+  else return;
+  run.late = null; run.focused++; a.focused = true;
   const before = { ...run.work.tol };
   const learns = run.round === 2 || run.round === "use";
   if (learns) adapt(a.buf);
   if (run.round === "use"){ (learned[(run.demo ? "demo:" : "") + run.pid] ??= {})[run.task] = { ...run.work.tol }; store.set("learned", learned); }
-  emit("i_was_focused", { learned: learns, before, after: { ...run.work.tol } });
-  run.state = "monitor"; run.offMs = 0; run.offBuf = []; run.cooldownUntil = now() + COOLDOWN_MS; run.nudges = 0; run.teacherSent = false;
+  emit("i_was_focused", { learned: learns, late: !!a.late, before, after: { ...run.work.tol } });
+  // A late answer belongs to an alert that is already closed: the current step keeps being measured as it is.
+  if (!a.late){ run.state = "monitor"; run.offMs = 0; run.offBuf = []; run.cooldownUntil = now() + COOLDOWN_MS; run.nudges = 0; run.teacherSent = false; }
   hideAlert();
 };
 function adapt(buf){
   if (!buf.length) return;
   // Gradual: only the side the head moved to widens, by at most LEARN.STEP, never beyond LEARN.CAP. The wait stays fixed.
   const dp = median(buf.map(s => s.dp)), dy = median(buf.map(s => s.dy)), t = run.work.tol;
-  const grow = (cur, need) => need > cur ? Math.min(LEARN.CAP, cur + LEARN.STEP, need + LEARN.MARGIN) : cur;
+  const grow = (cur, need) => need > cur ? +Math.min(LEARN.CAP, cur + LEARN.STEP, need + LEARN.MARGIN).toFixed(1) : cur;
   t.up = grow(t.up, dp); t.down = grow(t.down, -dp); t.right = grow(t.right, dy); t.left = grow(t.left, -dy);
 }
 

@@ -33,7 +33,8 @@ Choose task → Calibrate → Round 1 (no learning) → Round 2 (with learning) 
 - The wait before an alert is fixed at 5 s in both rounds, so only one thing can change in Round 2: the zone.
 - In Round 2, each “I was focused” widens only the side the head moved to, by at most 5° (cap 30°).
 - Each round is a scripted test: timed instructions (on task, truly off-task, natural on-task movement), so the correct answer is known in advance.
-- Each round is 3 cycles of: on task 12 s → natural movement 10 s → off-task 12 s → on task 10 s → natural movement 10 s (about 2.7 min). That gives 3 off-task steps and 6 natural-movement steps per round, so Round 2 has room to show what it learned without making the round longer.
+- Each round is 3 cycles of: on task 10 s → natural movement 12 s → off-task (turn the whole face away) 12 s → on task 8 s → natural movement 12 s (about 2.7 min). 3 off-task steps and 6 natural-movement steps per round. Script version **s3**; Final results use s3 rounds only.
+- If an alert is closed because the step changed, «كنت مركّزاً» (I was focused) still works for 6 s, so a slow answer is not lost.
 - Main result: **Wrong alerts (%)**, the share of alerts that were unnecessary (should fall). Real off-task detection should stay high. Recovery time is supporting.
 - Tracking lost is logged on its own and never counted as off-task. Off-task periods with mostly lost tracking are left out of detection.
 - Demo Mode (no camera, drag to move) is labelled, and its rounds are excluded from results. Rounds stopped early are excluded too.

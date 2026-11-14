@@ -156,7 +156,7 @@ details.more .cardhead{border-top:1px solid var(--line)}
 </div>
 
 <script type="module">
-import { TASKS, TASK_LABEL, ROUND_LABEL, aggregate, counts, phaseOf, zoneEvidence, setupIssue, drawCharts, csv, download, store, normCode, newCode, Link, sheetOn, sheetLoad, sheetQueue, rowId } from "./common.js?v=1794420000";
+import { TASKS, TASK_LABEL, ROUND_LABEL, aggregate, counts, phaseOf, zoneEvidence, setupIssue, isFinal, PROTOCOL, drawCharts, csv, download, store, normCode, newCode, Link, sheetOn, sheetLoad, sheetQueue, rowId } from "./common.js?v=1794430000";
 const $ = id => document.getElementById(id);
 
 let link = null, live = null, liveAt = 0;
@@ -173,12 +173,12 @@ let events = store.get("dash_events", []);
 let view = store.get("dash_view", "session");
 function viewRows(){
   if (view === "session") return link ? all().filter(r => r.code === link.code) : [];
-  return all().filter(r => phaseOf(r) === view);
+  return all().filter(r => view === "final" ? isFinal(r) : !isFinal(r));
 }
 const VIEW_NOTE = {
   session: "This session only. Success: fewer wrong alerts in Round 2, while real off-task is still caught.",
-  final: "Final study: all finished rounds of real participants (this dashboard and the results sheet).",
-  pilot: "Pilot: practice rounds, kept out of the final results.",
+  final: `Final study: finished rounds of real participants with the current script (${PROTOCOL}), from this dashboard and the results sheet.`,
+  pilot: "Pilot and older scripts: kept out of the final results.",
 };
 document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => { view = b.dataset.view; store.set("dash_view", view); renderAll(); });
 
@@ -334,7 +334,7 @@ function renderTable(){
     const tr = document.createElement("tr");
     const cells = [r.code, r.pid, TASK_LABEL[r.task], "Round " + r.round, r.alerts, `${r.falseAlerts} (${r.falsePct}%)`,
       r.episodes ? `${r.detected}/${r.episodes}` : "–", r.meanReturnS ?? "–", `${r.trackingLostCount}× · ${r.trackingLostS}s`,
-      phaseOf(r) === "final" ? "Final" : "Pilot",
+      isFinal(r) ? "Final" : phaseOf(r) === "final" ? "Final · older script" : "Pilot",
       [r.demo ? "Demo · excluded" : r.completed ? "" : "Stopped early · excluded", setupIssue(r), r.iWasFocused === 0 && r.round === 2 && r.falseAlerts > 0 ? "No “I was focused” · nothing learned" : ""].filter(Boolean).join(" · ")];
     cells.forEach((v, i) => { const td = document.createElement("td"); td.textContent = v ?? "–"; if (i >= 4 && i <= 8) td.className = "n"; tr.appendChild(td); });
     tb.appendChild(tr);
