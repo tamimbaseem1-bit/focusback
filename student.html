@@ -134,7 +134,7 @@
 </div>
 
 <script type="module">
-import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link, sheetOn, sheetQueue, sheetFlush, sheetWaiting, rowId } from "./common.js?v=1794390000";
+import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link, sheetOn, sheetQueue, sheetFlush, sheetWaiting, rowId } from "./common.js?v=1794400000";
 
 const $ = id => document.getElementById(id);
 const now = () => performance.now();
@@ -152,7 +152,7 @@ const TASK_TOL = {
 };
 // Round 2 learning: each "I was focused" widens only the side the head moved to, by at most STEP, never beyond CAP.
 const LEARN = { STEP:5, CAP:30, MARGIN:3 };
-const VERSION = "2026-11-11";
+const VERSION = "fb-2026.11.14";   // not a date, so the sheet keeps it as text
 
 // ---------- state ----------
 let task = "reading";
@@ -316,7 +316,7 @@ function nextAction(){
   if (!doneRound(2)) return { label:"Start Round 2 · with learning", icon:"play", go:() => startRound(2) };
   const nxt = ["reading","writing","listening"].find(t => !(doneFor(t, 2)));
   return nxt ? { label:"Next task: " + TASK_LABEL[nxt], icon:"arrow", go:() => { task = nxt; ui(); sendLive(true); } }
-             : { label:"All tasks done · see the dashboard", icon:"check", go:null };
+             : { label:"All tasks done · see the dashboard", icon:"check", go:null, done:true };
 }
 $("btnGo").onclick = () => { const a = nextAction(); a.go && a.go(); };
 $("chipCal").onclick = () => calibrate();
@@ -324,12 +324,23 @@ $("chipR1").onclick = () => startRound(1);
 $("chipR2").onclick = () => startRound(2);
 $("btnDemo").onclick = () => { demoChosen = true; ui(); };
 $("linkPill").onclick = () => { $("more").open = true; $("code").scrollIntoView({ behavior:"smooth", block:"center" }); setTimeout(() => $("code").focus(), 300); };
+// Same volunteer code used by someone else before (another session)? Ask once before mixing two people's data.
+let reuseArmed = 0, hintNote = { txt: "", until: 0 };
+const nextFreePid = () => { const n = Math.max(0, ...sessions.map(s => +(String(s.pid).match(/\d+/)?.[0] || 0))); return "P" + String(n + 1).padStart(2, "0"); };
+const usedElsewhere = () => !demo() && sessions.some(s => s.pid === pid() && !s.demo && phaseOf(s) === phase && (s.code || null) !== (link?.code || null));
 function startRound(round){
   if (!base() || run || calib) return;
+  if (usedElsewhere() && Date.now() - reuseArmed > 8000){
+    reuseArmed = Date.now();
+    hintNote = { txt: `${pid()} already has rounds from another session. New participant? Change the code in Settings to ${nextFreePid()}, then calibrate. Same person? Tap again to continue.`, until: Date.now() + 8000 };
+    ui(); setTimeout(ui, 8100); return;
+  }
+  reuseArmed = 0;
   const segs = []; for (let c = 0; c < CYCLES; c++) SCRIPTS[task].forEach(s => segs.push({ ...s }));
   // Both rounds start from the same calibration and the same task zone, with the same fixed wait, so the comparison is fair.
   run = { round, task, pid: pid(), demo: demo(), phase, start: now(), startedAt: new Date().toISOString(),
     work: { base: { ...base() }, tol: { ...TASK_TOL[task] } }, poses: { on: [], test: [], off: [] }, lastPoseAt: 0,
+    q: { onSeen: 0, onOut: 0, autoClosed: 0, warned: false },
     segs, i: -1, segStart: 0, state: "monitor", offMs: 0, offBuf: [], cooldownUntil: 0,
     alertAt: 0, lastNudgeAt: 0, nudges: 0, inSince: null, teacherSent: false,
     alerts: [], repeats: 0, teacherSupport: 0, focused: 0, recov: [], episodes: [], open: null,
@@ -363,9 +374,28 @@ function nextSeg(){
   if (run.open){ run.episodes.push([run.open.s, t, run.open.lost]); run.open = null; }
   run.i++;
   if (run.i >= run.segs.length){ speak("انتهت الجولة، شكراً لك"); endRound(true); return; }
-  const seg = run.segs[run.i]; run.segStart = t;
-  if (seg.k === "off") run.open = { s: t, lost: 0 };
+  const seg = run.segs[run.i], prev = run.segs[run.i - 1]; run.segStart = t;
+  // An alert raised outside a real off-task step must not spill into the next step: close it (left unanswered)
+  // and start measuring the new step clean. An alert from a real off-task step stays until the student returns,
+  // but never into the next off-task step, so each off-task step is measured on its own.
+  if (run.state === "alert" && (run.alerts.at(-1)?.k !== "off" || seg.k === "off")){
+    run.alerts.at(-1).closed = true; run.q.autoClosed++;
+    run.state = "monitor"; run.nudges = 0; run.teacherSent = false; hideAlert();
+  }
+  if (run.state === "monitor"){ run.offMs = 0; run.offBuf = []; }
+  if (seg.k === "off"){ run.open = { s: t, lost: 0 }; run.cooldownUntil = 0; }
+  // After the first on-task step: warn the helper if the calibration or the camera angle looks wrong.
+  if (prev && prev.k === "on" && run.i === 1 && !run.q.warned) checkSetup(t);
   $("svTask").textContent = seg.s; stepTone(); speak(seg.s);
+}
+function checkSetup(t){
+  const lostShare = run.lostMs / Math.max(1, t - run.start), out = run.q.onSeen ? run.q.onOut / run.q.onSeen : 0;
+  const msg = lostShare > .3 ? "For the helper: the camera keeps losing the face. Move the device so the whole face stays visible, even when looking down."
+            : out > .5 ? "For the helper: while on task the head was mostly outside the zone. Stop, recalibrate sitting exactly as during the task, then start again."
+            : "";
+  if (!msg) return;
+  run.q.warned = true; emit("setup_warning", { lost_pct: Math.round(100*lostShare), out_pct: Math.round(100*out) });
+  if (run.state !== "alert") $("svSub").textContent = msg;
 }
 function pct(a, q){ if (!a.length) return null; const s = [...a].sort((x,y)=>x-y); return s[Math.min(s.length-1, Math.max(0, Math.round(q*(s.length-1))))]; }
 function spread(list){
@@ -391,7 +421,11 @@ function endRound(finished){
     alertS: ALERT_S, startZone: TASK_TOL[run.task], finalZone: run.work.tol,
     learn: run.round === 2 ? { step: LEARN.STEP, cap: LEARN.CAP } : null,
     // Head-angle spread (5th–95th percentile, degrees from the centre) per script step type: the evidence for the task zones.
-    spread: { on: spread(run.poses.on), test: spread(run.poses.test), off: spread(run.poses.off) } };
+    // quality (kept inside "spread" so the sheet needs no new columns): share of on-task time outside the zone,
+    // share of the round with no face, alerts closed because the step changed.
+    spread: { on: spread(run.poses.on), test: spread(run.poses.test), off: spread(run.poses.off),
+      quality: { onOutPct: run.q.onSeen ? Math.round(100*run.q.onOut/run.q.onSeen) : null,
+                 lostPct: Math.round(100*run.lostMs/Math.max(1, t - run.start)), autoClosed: run.q.autoClosed } } };
   row.id = rowId(row);
   sessions.push(row); store.set("sessions", sessions);
   if (!row.demo) sheetQueue([row]).then(sheetUi);
@@ -409,6 +443,7 @@ function step(t){
   const z = inZone();
   // Head angle relative to the centre, about 5 times a second, grouped by the script step (on / test / off).
   const seg = run.segs[run.i];
+  if (seg?.k === "on" && z !== null && t - run.segStart >= 1500){ run.q.onSeen += dt; if (z === false) run.q.onOut += dt; }
   if (z !== null && seg && t - run.lastPoseAt >= 200 && t - run.segStart >= 1500){ run.lastPoseAt = t; const q = rel(); run.poses[seg.k]?.push([+q.dp.toFixed(1), +q.dy.toFixed(1)]); }
   // tracking lost: logged on its own, never counted as off-task
   if (z === null){
@@ -442,7 +477,7 @@ function step(t){
 }
 function raiseAlert(t){
   run.state = "alert"; run.alertAt = t; run.lastNudgeAt = t; run.nudges = 1; run.inSince = null;
-  run.alerts.push({ at: t, buf: run.offBuf.slice() });
+  run.alerts.push({ at: t, buf: run.offBuf.slice(), k: run.segs[run.i]?.k });
   emit("alert", { off_s: +(run.offMs/1000).toFixed(1) });
   $("svMsg").textContent = "Quick check: back to your task?";
   $("svSub").textContent = "Just go back to it. If you were already working, tap “I was focused”.";
@@ -565,11 +600,13 @@ function ui(){
     const rc = $("hint"); if (cal && !calib && !run){ const b = document.createElement("button"); b.className = "link"; b.textContent = "Recalibrate"; b.onclick = calibrate; rc.appendChild(b); }
     return;
   }
+  if (Date.now() < hintNote.until){ $("hint").textContent = hintNote.txt; return; }
   $("hint").textContent = calib ? `Keep looking at the ${task === "listening" ? "speaker or screen" : task === "writing" ? "notebook" : "book"} as usual.`
-    : camState !== "on" && !demoChosen ? "Place the device in front of the volunteer."
-    : !cal ? "The volunteer looks at the task as usual for 20 seconds."
+    : camState !== "on" && !demoChosen ? "Place the device so the whole face stays visible, even when looking down at the notebook."
+    : !cal ? "The volunteer sits exactly as during the task and looks at it as usual for 20 seconds."
     : !d1 ? "The student screen opens. The volunteer follows the instructions."
     : !d2 ? "Same calibration as Round 1. This time the system learns."
+    : nextAction().done ? `All three tasks are complete for ${pid()}. Next participant? Change the code in Settings to ${nextFreePid()}.`
     : `${TASK_LABEL[task]} is complete.`;
 }
 

@@ -130,7 +130,7 @@ details.more .cardhead{border-top:1px solid var(--line)}
     <div class="tablewrap"><table id="tbl"><thead><tr><th>Code</th><th>Student</th><th>Task</th><th>Round</th><th>Alerts</th><th>Wrong alerts</th><th>Off-task caught</th><th>Return (s)</th><th>Tracking lost</th><th>Phase</th><th></th></tr></thead><tbody></tbody></table></div>
     <div class="empty" id="emptyT">No rounds yet.</div>
     <div id="zoneBox" hidden>
-      <div class="cardhead"><div><h2>Task zones from the data</h2><p class="note">95th percentile of head angle from the calibration centre (degrees), median over finished rounds. “On task” = steady work · “Natural movement” = the test steps. Use On task to set each task’s default zone.</p></div></div>
+      <div class="cardhead"><div><h2>Task zones from the data</h2><p class="note">95th percentile of head angle from the calibration centre (degrees), median over finished rounds. “On task” = steady work · “Natural movement” = the test steps. Use On task to set each task’s default zone. Rounds with a setup problem are left out.</p></div></div>
       <div class="tablewrap"><table id="zoneTbl"><thead><tr><th>Task</th><th>Rounds</th><th>Steps</th><th>Up</th><th>Down</th><th>Left</th><th>Right</th></tr></thead><tbody></tbody></table></div>
     </div>
     <div class="cardhead" id="clearRow" hidden><div><h2>Pilot data</h2><p class="note" id="clearNote">Deletes pilot rounds stored on this dashboard (the results sheet keeps its copy; delete rows there by hand if needed). Download the CSV first. Clear the student device too (Settings on the student page).</p></div><button class="btn" id="btnClearPilot">Clear pilot data</button></div>
@@ -142,7 +142,7 @@ details.more .cardhead{border-top:1px solid var(--line)}
 </div>
 
 <script type="module">
-import { TASKS, TASK_LABEL, ROUND_LABEL, aggregate, counts, phaseOf, zoneEvidence, drawCharts, csv, download, store, normCode, newCode, Link, sheetOn, sheetLoad, sheetQueue, rowId } from "./common.js?v=1794390000";
+import { TASKS, TASK_LABEL, ROUND_LABEL, aggregate, counts, phaseOf, zoneEvidence, setupIssue, drawCharts, csv, download, store, normCode, newCode, Link, sheetOn, sheetLoad, sheetQueue, rowId } from "./common.js?v=1794400000";
 const $ = id => document.getElementById(id);
 
 let link = null, live = null, liveAt = 0;
@@ -191,9 +191,9 @@ function onMsg(topic, msg){
   else if (topic === "event"){
     if (msg.type === "round_end" && msg.row){ mergeRows([msg.row]); setTimeout(loadSheet, 5000); }
     if (msg.type === "teacher_support"){ $("supportTxt").textContent = `${msg.pid} did not return to ${TASK_LABEL[msg.task] || "the task"} after two private alerts.`; $("support").hidden = false; }
-    if (["alert","alert_repeat","returned","i_was_focused","teacher_support","tracking_lost","tracking_restored","round_start","round_end","session_start","session_end","calibrated"].includes(msg.type)){
+    if (["alert","alert_repeat","returned","i_was_focused","teacher_support","tracking_lost","tracking_restored","setup_warning","round_start","round_end","session_start","session_end","calibrated"].includes(msg.type)){
       const e = { ts: msg.ts || Date.now(), code: link?.code, pid: msg.pid, task: msg.task, round: msg.round, demo: msg.demo, type: msg.type,
-        recovery_s: msg.recovery_s, lost_s: msg.lost_s, learned: msg.learned };
+        recovery_s: msg.recovery_s, lost_s: msg.lost_s, learned: msg.learned, lost_pct: msg.lost_pct, out_pct: msg.out_pct };
       events.push(e); if (events.length > 2000) events = events.slice(-2000); store.set("dash_events", events); renderFeed();
     }
   }
@@ -233,6 +233,7 @@ const LBL = {
   tracking_lost: () => ["Tracking lost", "not counted as off-task"], tracking_restored: e => ["Tracking restored", e.lost_s != null ? `after ${e.lost_s}s` : ""],
   round_start: e => [`${ROUND_LABEL[e.round] || "Round"} started`, TASK_LABEL[e.task] || ""], round_end: e => [`${ROUND_LABEL[e.round] || "Round"} finished`, TASK_LABEL[e.task] || ""],
   calibrated: e => ["Calibrated", TASK_LABEL[e.task] || ""],
+  setup_warning: e => ["Check the setup", e.lost_pct > 30 ? `face lost ${e.lost_pct}% of the time` : `head outside the zone ${e.out_pct}% while on task: recalibrate`],
   session_start: e => ["Session started", (TASK_LABEL[e.task] || "") + " · everyday use"], session_end: e => ["Session ended", TASK_LABEL[e.task] || ""],
 };
 const CLS = { alert:"a", alert_repeat:"a", returned:"r", teacher_support:"t", i_was_focused:"f" };
@@ -287,7 +288,7 @@ function renderTable(){
     const cells = [r.code, r.pid, TASK_LABEL[r.task], "Round " + r.round, r.alerts, `${r.falseAlerts} (${r.falsePct}%)`,
       r.episodes ? `${r.detected}/${r.episodes}` : "–", r.meanReturnS ?? "–", `${r.trackingLostCount}× · ${r.trackingLostS}s`,
       phaseOf(r) === "final" ? "Final" : "Pilot",
-      r.demo ? "Demo · excluded" : r.completed ? "" : "Stopped early · excluded"];
+      [r.demo ? "Demo · excluded" : r.completed ? "" : "Stopped early · excluded", setupIssue(r), r.iWasFocused === 0 && r.round === 2 && r.falseAlerts > 0 ? "No “I was focused” · nothing learned" : ""].filter(Boolean).join(" · ")];
     cells.forEach((v, i) => { const td = document.createElement("td"); td.textContent = v ?? "–"; if (i >= 4 && i <= 8) td.className = "n"; tr.appendChild(td); });
     tb.appendChild(tr);
   });

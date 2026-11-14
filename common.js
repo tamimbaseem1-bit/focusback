@@ -12,19 +12,19 @@ export const SCRIPTS = {
     { k: "on",   d: 20000, s: "اقرأ في الكتاب كعادتك" },
     { k: "off",  d: 12000, s: "انظر جانباً بعيداً عن الكتاب، وعُد للقراءة عند التنبيه" },
     { k: "on",   d: 15000, s: "عُد إلى القراءة" },
-    { k: "test", d: 12000, s: "دوّن ملاحظة في الدفتر الذي بجانبك" },
+    { k: "test", d: 12000, s: "دوّن ملاحظة في الدفتر الذي بجانبك. إذا جاءك تنبيه وأنت تعمل، اضغط «I was focused»" },
   ],
   writing: [
     { k: "on",   d: 20000, s: "اكتب في الدفتر كعادتك" },
     { k: "off",  d: 12000, s: "توقف عن الكتابة وانظر جانباً، وعُد عند التنبيه" },
     { k: "on",   d: 15000, s: "عُد إلى الكتابة" },
-    { k: "test", d: 12000, s: "ارفع رأسك وفكّر في الجملة التالية، ثم أكمل" },
+    { k: "test", d: 12000, s: "ارفع رأسك وفكّر في الجملة التالية، ثم أكمل. إذا جاءك تنبيه وأنت تعمل، اضغط «I was focused»" },
   ],
   listening: [
     { k: "on",   d: 20000, s: "انظر إلى المتحدث أو الشاشة واستمع" },
     { k: "off",  d: 12000, s: "انشغل بشيء جانبي، وعُد للاستماع عند التنبيه" },
     { k: "on",   d: 15000, s: "عُد إلى الاستماع" },
-    { k: "test", d: 12000, s: "اكتب ملاحظة سريعة عن الشرح" },
+    { k: "test", d: 12000, s: "اكتب ملاحظة سريعة عن الشرح. إذا جاءك تنبيه وأنت تعمل، اضغط «I was focused»" },
   ],
 };
 export const CYCLES = 3;
@@ -58,12 +58,19 @@ export function aggregate(sessions) {
   return out;
 }
 
+// Setup problems seen during a round (old rounds have no quality numbers and are not flagged).
+export function setupIssue(r) {
+  const q = r?.spread?.quality; if (!q) return "";
+  if (q.lostPct > 30) return "Face often lost";
+  if (q.onOutPct > 50) return "Check calibration";
+  return "";
+}
 // Task zones from the data: for each task and side, the median over rounds of the 95th-percentile head angle
 // during on-task steps ("on") and natural-movement steps ("test").
 export function zoneEvidence(sessions) {
   const out = {}, med = a => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : null; };
   for (const t of TASKS) {
-    const rows = sessions.filter(s => s.task === t && s.completed === true && !s.demo && s.spread);
+    const rows = sessions.filter(s => s.task === t && s.completed === true && !s.demo && s.spread && !setupIssue(s));
     out[t] = { n: rows.length };
     for (const k of ["on", "test"]) {
       const list = rows.map(r => r.spread[k]).filter(Boolean);
