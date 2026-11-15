@@ -8,7 +8,7 @@ export const ROUND_LABEL = { 1: "Round 1 · no learning", 2: "Round 2 · with le
 // Scripted test: the volunteer follows timed instructions, so the correct answer is known in advance.
 // on = doing the task · off = truly off-task · test = natural on-task movement that tempts a false nudge.
 // Script version. Final results use only rounds recorded with this version (rounds from older scripts show under Pilot).
-export const PROTOCOL = "s5";   // s5: learns positions (circles) instead of widening the box; reading test = look up to think
+export const PROTOCOL = "s6";   // s6: task zones from pilot data; a return must hold 0.8 s. (s5: learned positions; reading test = look up)
 // Each cycle has two natural-movement steps, so Round 2 has room to show what it learned,
 // without making the round longer (54 s per cycle, about 2.7 min per round). Natural-movement steps are 12 s,
 // so an alert that comes after 5 s still leaves time to answer it.

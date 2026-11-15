@@ -28,14 +28,15 @@ Every finished round (not Demo, not everyday use) is also saved to a Google Shee
 
 Choose task → Calibrate → Round 1 (no learning) → Round 2 (with learning) → Compare.
 
-- Each task has its own default zone around its own calibration centre (Reading: more room down and sideways; Writing: most room down and sideways; Listening: narrow). Starting values, to be updated from pilot data (the dashboard shows the measured head-angle spread per task).
+- Each task has its own default zone around its own calibration centre, set from pilot data (P02–P05, 8 finished rounds per task): the 75th percentile over rounds of the on-task 95th-percentile head angle, +3°, at least 12°, both sides the same. Reading: up 22°, down 12°, sides 16° · Writing: up 16°, down 12°, sides 15° · Listening: up 22°, down 13°, sides 14°.
+- A return to the zone only counts once it holds for 0.8 s, so a face glimpsed for a moment while turned away does not reset the off-task count.
 - Both rounds start from the same calibration and the same task zone.
 - The wait before an alert is fixed at 5 s in both rounds, so only one thing can change in Round 2: the zone.
 - In Round 2, each “I was focused” saves where the head was during that alert. From then on, a circle of 15° around each saved position also counts as in the zone (at most 8 positions). The task box itself never changes. This learns diagonal movements, like looking up and to the right to think, without allowing “just to the right”. (s5, from pilot data: natural movements were often diagonal, which widening a box side by side could not cover.)
 - If the face disappears right after the head left the zone, the student turned away (a camera cannot see a face turned far to the side): that counts as outside the zone. If the face disappears while in the zone, it is tracking lost and never counts as off-task.
 - The notebook goes in front of the student (below the book or screen), so note-taking is an up/down movement and sideways stays for distraction.
 - Each round is a scripted test: timed instructions (on task, truly off-task, natural on-task movement), so the correct answer is known in advance.
-- Each round is 3 cycles of: on task 10 s → natural movement 12 s (Reading: look up to think · Writing: raise the head to think · Listening: write a note) → off-task (turn the face clearly away) 12 s → on task 8 s → natural movement 12 s (about 2.7 min). 3 off-task steps and 6 natural-movement steps per round. Script version **s5**; Final results use s5 rounds only. (s4 also fixed the head angles: in s3 and older data, up/down and left/right are swapped.)
+- Each round is 3 cycles of: on task 10 s → natural movement 12 s (Reading: look up to think · Writing: raise the head to think · Listening: write a note) → off-task (turn the face clearly away) 12 s → on task 8 s → natural movement 12 s (about 2.7 min). 3 off-task steps and 6 natural-movement steps per round. Script version **s6**; Final results use s6 rounds only. (s4 also fixed the head angles: in s3 and older data, up/down and left/right are swapped.)
 - If an alert is closed because the step changed, «كنت مركّزاً» (I was focused) still works for 6 s, so a slow answer is not lost.
 - Main result: **Wrong alerts (%)**, the share of alerts that were unnecessary (should fall). Real off-task detection should stay high. Recovery time is supporting.
 - Tracking lost is logged on its own and never counted as off-task. Off-task periods with mostly lost tracking are left out of detection.

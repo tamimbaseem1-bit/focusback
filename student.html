@@ -176,7 +176,7 @@
 </div>
 
 <script type="module">
-import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link, PROTOCOL, sheetOn, sheetQueue, sheetFlush, sheetWaiting, rowId } from "./common.js?v=1794450000";
+import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link, PROTOCOL, sheetOn, sheetQueue, sheetFlush, sheetWaiting, rowId } from "./common.js?v=1794460000";
 
 const $ = id => document.getElementById(id);
 const now = () => performance.now();
@@ -185,13 +185,15 @@ const now = () => performance.now();
 const CAL_MS = 20000, COOLDOWN_MS = 8000, REPEAT_MS = 8000, LOST_EVENT_MS = 1000;
 // The wait before an alert is fixed in both rounds, so Round 2 can only change one thing: the zone.
 const ALERT_S = 5;
-// Default zone per task (degrees from that task's calibration centre). Starting values: update them from the pilot data.
-// Reading: more room downward and to the sides · Writing: most room downward and sideways · Listening: narrow, facing the speaker.
+// Default zone per task (degrees from that task's calibration centre), from the pilot data (P02–P05, 8 finished
+// rounds per task): the 75th percentile over rounds of the on-task 95th-percentile head angle, +3°, at least 12°,
+// both sides the same. While on task, people mostly drift upward from where they calibrated, a little in listening most.
 const TASK_TOL = {
-  reading:   { up:12, down:20, left:22, right:22 },
-  writing:   { up:12, down:22, left:25, right:25 },
-  listening: { up:12, down:12, left:15, right:15 },
+  reading:   { up:22, down:12, left:16, right:16 },
+  writing:   { up:16, down:12, left:15, right:15 },
+  listening: { up:22, down:13, left:14, right:14 },
 };
+const BACK_MS = 800;   // back in the zone this long before the off-task count resets (a face glimpsed for a moment is not a return)
 // Round 2 learning: each "I was focused" widens only the side the head moved to, by at most STEP, never beyond CAP.
 // Round 2 learning (s5): each "I was focused" saves where the head was during that alert (the median of the
 // seconds before it). From then on, a circle of R degrees around each saved position counts as in the zone.
@@ -526,7 +528,11 @@ function step(t){
   if (z !== null && seg && t - run.lastPoseAt >= 200 && t - run.segStart >= 1500){ run.lastPoseAt = t; const q = rel(); run.poses[seg.k]?.push([+q.dp.toFixed(1), +q.dy.toFixed(1)]); }
   // Face gone right after the head left the zone = the student turned away (the camera cannot see a face turned
   // far to the side): that counts as outside the zone. Face gone while in the zone = tracking lost, never off-task.
-  if (z !== null) run.lastSeen = z;
+  // In the zone only counts once it has held for BACK_MS: while turned away the camera sometimes "finds" the face
+  // for a moment at a wrong angle that happens to fall inside the zone (P05, listening).
+  if (z === true) run.inMs = (run.inMs || 0) + dt; else if (z === false) run.inMs = 0;
+  const steadyIn = z === true && run.inMs >= BACK_MS;
+  if (z === false || steadyIn) run.lastSeen = z;
   const away = z === null && run.lastSeen === false;
   if (away){ run.awayMs = (run.awayMs || 0) + dt; z = false; const last = run.trace.at(-1); if (last && last[3] === 0) last[3] = 2; }
   // tracking lost: logged on its own, never counted as off-task
@@ -538,7 +544,8 @@ function step(t){
     run.lostSince = null; run.lostLogged = false;
   }
   if (run.state === "monitor"){
-    if (z === true || t < run.cooldownUntil){ run.offMs = 0; run.offBuf = []; return; }
+    if (steadyIn || t < run.cooldownUntil){ run.offMs = 0; run.offBuf = []; return; }
+    if (z === true) return;   // just came back: wait to see if it holds
     if (z === false){ run.offMs += dt; if (!away) run.offBuf.push(rel()); }
     if (run.offMs >= ALERT_S * 1000) raiseAlert(t);
   } else if (run.state === "alert"){
