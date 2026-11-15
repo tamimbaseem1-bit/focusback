@@ -176,7 +176,7 @@
 </div>
 
 <script type="module">
-import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link, PROTOCOL, sheetOn, sheetQueue, sheetFlush, sheetWaiting, rowId } from "./common.js?v=1794440000";
+import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link, PROTOCOL, sheetOn, sheetQueue, sheetFlush, sheetWaiting, rowId } from "./common.js?v=1794450000";
 
 const $ = id => document.getElementById(id);
 const now = () => performance.now();
@@ -193,9 +193,11 @@ const TASK_TOL = {
   listening: { up:12, down:12, left:15, right:15 },
 };
 // Round 2 learning: each "I was focused" widens only the side the head moved to, by at most STEP, never beyond CAP.
-// Up/down (looking at the desk, looking up to think) is part of studying, so it may widen faster and further.
-// Sideways is where distraction usually goes, so it stays cautious. Decided from pilot data (P02, P03), before the final study.
-const LEARN = { STEP_UD:15, CAP_UD:50, STEP_SIDE:5, CAP_SIDE:30, MARGIN:3 };
+// Round 2 learning (s5): each "I was focused" saves where the head was during that alert (the median of the
+// seconds before it). From then on, a circle of R degrees around each saved position counts as in the zone.
+// So a diagonal movement like "up and to the right to think" can be learned without allowing "just to the right".
+// Pilot data (P04) showed natural movements are often diagonal, which a box widened side by side cannot cover.
+const LEARN = { R:15, MAX:8 };
 const VERSION = "fb-2026.11.15-" + PROTOCOL;
 const LATE_MS = 6000;   // after an alert is closed by a step change, "I was focused" still works this long   // not a date, so the sheet keeps it as text
 
@@ -279,13 +281,15 @@ function sense(t){
   else pose = { ...simPose, face: simPose.face !== false };
 }
 const lkey = () => (demo() ? "demo:" : "") + pid();   // Demo Mode keeps its own memory, so it never changes a real student's zone
-const startTol = () => mode === "use" ? (learned[lkey()]?.[task] || TASK_TOL[task]) : TASK_TOL[task];
+const copyTol = t => ({ ...t, ex: (t.ex || []).map(e => ({ ...e })) });
+const startTol = () => copyTol(mode === "use" ? (learned[lkey()]?.[task] || TASK_TOL[task]) : TASK_TOL[task]);
 function zone(){ return run ? run.work : { base: base() || {p:0,y:0}, tol: startTol() }; }
 function rel(){ const b = zone().base; return { dp: pose.p - b.p, dy: pose.y - b.y }; }
 function inZone(){
   if (!pose.face) return null;
   const { dp, dy } = rel(), t = zone().tol;
-  return dp <= t.up && dp >= -t.down && dy <= t.right && dy >= -t.left;
+  return (dp <= t.up && dp >= -t.down && dy <= t.right && dy >= -t.left)
+      || (t.ex || []).some(e => Math.hypot(dp - e.dp, dy - e.dy) <= LEARN.R);
 }
 
 // ---------- sound, voice ----------
@@ -400,7 +404,7 @@ function startRound(round){
   const segs = []; for (let c = 0; c < CYCLES; c++) SCRIPTS[task].forEach(s => segs.push({ ...s }));
   // Both rounds start from the same calibration and the same task zone, with the same fixed wait, so the comparison is fair.
   run = { round, task, pid: pid(), demo: demo(), phase, start: now(), startedAt: new Date().toISOString(),
-    work: { base: { ...base() }, tol: { ...TASK_TOL[task] } }, poses: { on: [], test: [], off: [] }, lastPoseAt: 0,
+    work: { base: { ...base() }, tol: copyTol(TASK_TOL[task]) }, poses: { on: [], test: [], off: [] }, lastPoseAt: 0, trace: [], lastTraceAt: 0,
     q: { onSeen: 0, onOut: 0, autoClosed: 0, warned: false },
     segs, i: -1, segStart: 0, state: "monitor", offMs: 0, offBuf: [], cooldownUntil: 0,
     alertAt: 0, lastNudgeAt: 0, nudges: 0, inSince: null, teacherSent: false,
@@ -414,7 +418,7 @@ function startRound(round){
 function startUse(){
   if (!base() || run || calib) return;
   run = { round: "use", task, pid: pid(), demo: demo(), phase: null, start: now(), startedAt: new Date().toISOString(),
-    work: { base: { ...base() }, tol: { ...startTol() } }, poses: {}, lastPoseAt: 0,
+    work: { base: { ...base() }, tol: startTol() }, poses: {}, lastPoseAt: 0, trace: [], lastTraceAt: 0,
     segs: [{ k: "use", d: Infinity, s: USE_TEXT[task] }], i: -1, segStart: 0, state: "monitor", offMs: 0, offBuf: [], cooldownUntil: 0,
     alertAt: 0, lastNudgeAt: 0, nudges: 0, inSince: null, teacherSent: false,
     alerts: [], repeats: 0, teacherSupport: 0, focused: 0, recov: [], episodes: [], open: null,
@@ -488,11 +492,13 @@ function endRound(finished){
     recovSumS: +(run.recov.reduce((a,b)=>a+b,0)/1000).toFixed(2), recovN: run.recov.length,
     trackingLostCount: run.lostCount, trackingLostS: +(run.lostMs/1000).toFixed(1),
     alertS: ALERT_S, startZone: TASK_TOL[run.task], finalZone: run.work.tol,
-    learn: run.round === 2 ? { ...LEARN } : null,
+    learn: run.round === 2 ? { method: "positions", ...LEARN } : null,
     // Head-angle spread (5th–95th percentile, degrees from the centre) per script step type: the evidence for the task zones.
     // quality (kept inside "spread" so the sheet needs no new columns): share of on-task time outside the zone,
     // share of the round with no face, alerts closed because the step changed.
-    spread: { on: spread(run.poses.on), test: spread(run.poses.test), off: spread(run.poses.off),
+    // trace (inside "spread" so the sheet needs no new column): 2 samples a second,
+    // [step type, up/down°, left/right°, 1 = face seen · 0 = lost · 2 = turned away]
+    spread: { on: spread(run.poses.on), test: spread(run.poses.test), off: spread(run.poses.off), trace: run.trace,
       quality: { onOutPct: run.q.onSeen ? Math.round(100*run.q.onOut/run.q.onSeen) : null,
                  lostPct: Math.round(100*run.lostMs/Math.max(1, t - run.start)), awayPct: Math.round(100*(run.awayMs || 0)/Math.max(1, t - run.start)),
                  autoClosed: run.q.autoClosed } } };
@@ -514,13 +520,15 @@ function step(t){
   let z = inZone();
   // Head angle relative to the centre, about 5 times a second, grouped by the script step (on / test / off).
   const seg = run.segs[run.i];
+  if (seg && t - run.lastTraceAt >= 500){ run.lastTraceAt = t; const q = rel();
+    run.trace.push(z === null ? [seg.k, null, null, 0] : [seg.k, Math.round(q.dp), Math.round(q.dy), 1]); }
   if (seg?.k === "on" && z !== null && t - run.segStart >= 1500){ run.q.onSeen += dt; if (z === false) run.q.onOut += dt; }
   if (z !== null && seg && t - run.lastPoseAt >= 200 && t - run.segStart >= 1500){ run.lastPoseAt = t; const q = rel(); run.poses[seg.k]?.push([+q.dp.toFixed(1), +q.dy.toFixed(1)]); }
   // Face gone right after the head left the zone = the student turned away (the camera cannot see a face turned
   // far to the side): that counts as outside the zone. Face gone while in the zone = tracking lost, never off-task.
   if (z !== null) run.lastSeen = z;
   const away = z === null && run.lastSeen === false;
-  if (away){ run.awayMs = (run.awayMs || 0) + dt; z = false; }
+  if (away){ run.awayMs = (run.awayMs || 0) + dt; z = false; const last = run.trace.at(-1); if (last && last[3] === 0) last[3] = 2; }
   // tracking lost: logged on its own, never counted as off-task
   if (z === null){
     run.lostSince ??= t; run.lostMs += dt; if (run.open) run.open.lost += dt;
@@ -577,7 +585,7 @@ $("btnFocused").onclick = () => {
   const before = { ...run.work.tol };
   const learns = run.round === 2 || run.round === "use";
   if (learns) adapt(a.buf);
-  if (run.round === "use"){ (learned[(run.demo ? "demo:" : "") + run.pid] ??= {})[run.task] = { ...run.work.tol }; store.set("learned2", learned); }
+  if (run.round === "use"){ (learned[(run.demo ? "demo:" : "") + run.pid] ??= {})[run.task] = copyTol(run.work.tol); store.set("learned2", learned); }
   emit("i_was_focused", { learned: learns, late: !!a.late, before, after: { ...run.work.tol } });
   // A late answer belongs to an alert that is already closed: the current step keeps being measured as it is.
   if (!a.late){ run.state = "monitor"; run.offMs = 0; run.offBuf = []; run.cooldownUntil = now() + COOLDOWN_MS; run.nudges = 0; run.teacherSent = false; }
@@ -585,11 +593,10 @@ $("btnFocused").onclick = () => {
 };
 function adapt(buf){
   if (!buf.length) return;
-  // Gradual: only the side the head moved to widens, by at most LEARN.STEP, never beyond LEARN.CAP. The wait stays fixed.
-  const dp = median(buf.map(s => s.dp)), dy = median(buf.map(s => s.dy)), t = run.work.tol;
-  const grow = (cur, need, step, cap) => need > cur ? +Math.min(cap, cur + step, need + LEARN.MARGIN).toFixed(1) : cur;
-  t.up = grow(t.up, dp, LEARN.STEP_UD, LEARN.CAP_UD); t.down = grow(t.down, -dp, LEARN.STEP_UD, LEARN.CAP_UD);
-  t.right = grow(t.right, dy, LEARN.STEP_SIDE, LEARN.CAP_SIDE); t.left = grow(t.left, -dy, LEARN.STEP_SIDE, LEARN.CAP_SIDE);
+  // Save where the head was during this alert. The task box itself never changes, and the wait stays fixed.
+  const t = run.work.tol; t.ex ??= [];
+  if (t.ex.length >= LEARN.MAX) return;
+  t.ex.push({ dp: +median(buf.map(s => s.dp)).toFixed(1), dy: +median(buf.map(s => s.dy)).toFixed(1) });
 }
 
 // ---------- results sheet ----------
@@ -654,7 +661,7 @@ function uiMain(){
   $("modeNote").textContent = use ? "Remembers this student on this device: calibrate once per task, then just press Start. Learning is always on and kept for next time. Not counted in the study results."
                                   : "Scripted Round 1 and Round 2 for the study. Every round starts from the default zone.";
   const L = learned[lkey()]?.[task], T = TASK_TOL[task];
-  $("learnTxt").textContent = L ? `${pid()} · ${TASK_LABEL[task]}: learned zone up ${L.up}°, down ${L.down}°, left ${L.left}°, right ${L.right}° (default ${T.up}/${T.down}/${T.left}/${T.right}).`
+  $("learnTxt").textContent = L?.ex?.length ? `${pid()} · ${TASK_LABEL[task]}: ${L.ex.length} learned position${L.ex.length === 1 ? "" : "s"} where the student said they were focused, on top of the task zone.`
                                 : `${pid()} · ${TASK_LABEL[task]}: default zone. It widens when the student taps “I was focused”.`;
   $("svBar").hidden = run?.round === "use"; $("svStop").textContent = run?.round === "use" ? "End session" : "Stop round";
   document.querySelectorAll("[data-phase]").forEach(b => { b.setAttribute("aria-pressed", b.dataset.phase === phase); b.disabled = !!(run || calib); });
@@ -712,6 +719,10 @@ function drawPose(){
   const t = z.tol;
   g.globalAlpha = base() ? .22 : .1; g.fillStyle = Z; g.beginPath(); g.roundRect?.(cx - t.left*s, cy - t.up*s, (t.left+t.right)*s, (t.up+t.down)*s, 14); g.fill();
   g.globalAlpha = base() ? 1 : .45; g.strokeStyle = Z; g.lineWidth = 2; g.stroke(); g.globalAlpha = 1;
+  for (const e of t.ex || []){   // learned positions
+    g.beginPath(); g.arc(cx + e.dy*s, cy - e.dp*s, LEARN.R*s, 0, Math.PI*2);
+    g.globalAlpha = .22; g.fillStyle = Z; g.fill(); g.globalAlpha = 1; g.strokeStyle = Z; g.lineWidth = 2; g.setLineDash([5,4]); g.stroke(); g.setLineDash([]);
+  }
   if (calib){ const p = Math.min(1, (now()-calib.start)/CAL_MS); g.strokeStyle = DOT; g.lineWidth = 4; g.beginPath(); g.arc(cx, cy, 30, -Math.PI/2, -Math.PI/2 + p*Math.PI*2); g.stroke(); }
   if (pose.face){
     const q = rel(), x = cx + Math.max(-54, Math.min(54, q.dy))*s, y = cy - Math.max(-39, Math.min(39, q.dp))*s;
