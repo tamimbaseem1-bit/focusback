@@ -77,7 +77,7 @@
     <div class="box"><b>جهّز قبل ما تبدأ:</b>
       <ol>
         <li>كتاب تقرأ فيه.</li>
-        <li>دفتر وقلم.</li>
+        <li>دفتر وقلم. حط الدفتر <b>قدامك</b> (تحت الكتاب أو قدام الشاشة)، مو على جنب.</li>
         <li>للاستماع: مقطع تعليمي أو محاضرة تشغّلها على <b>جهاز ثاني</b> (تلفزيون، لابتوب، جوال ثاني).</li>
         <li>مكان هادئ وإضاءة جيدة على وجهك.</li>
       </ol>
@@ -176,7 +176,7 @@
 </div>
 
 <script type="module">
-import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link, PROTOCOL, sheetOn, sheetQueue, sheetFlush, sheetWaiting, rowId } from "./common.js?v=1794430000";
+import { SCRIPTS, CYCLES, TASK_LABEL, score, store, normCode, Link, PROTOCOL, sheetOn, sheetQueue, sheetFlush, sheetWaiting, rowId } from "./common.js?v=1794440000";
 
 const $ = id => document.getElementById(id);
 const now = () => performance.now();
@@ -193,20 +193,22 @@ const TASK_TOL = {
   listening: { up:12, down:12, left:15, right:15 },
 };
 // Round 2 learning: each "I was focused" widens only the side the head moved to, by at most STEP, never beyond CAP.
-const LEARN = { STEP:5, CAP:30, MARGIN:3 };
-const VERSION = "fb-2026.11.15-" + PROTOCOL;   // s3: longer natural-movement steps, late "I was focused", clearer off-task steps
+// Up/down (looking at the desk, looking up to think) is part of studying, so it may widen faster and further.
+// Sideways is where distraction usually goes, so it stays cautious. Decided from pilot data (P02, P03), before the final study.
+const LEARN = { STEP_UD:15, CAP_UD:50, STEP_SIDE:5, CAP_SIDE:30, MARGIN:3 };
+const VERSION = "fb-2026.11.15-" + PROTOCOL;
 const LATE_MS = 6000;   // after an alert is closed by a step change, "I was focused" still works this long   // not a date, so the sheet keeps it as text
 
 // ---------- state ----------
 let task = "reading";
-let calibs = store.get("calibs", {});            // calibs[pid][task] = {p, y}
+let calibs = store.get("calibs2", {});   // "2": angles fixed in s4, so older calibrations are not reused            // calibs[pid][task] = {p, y}
 let sessions = store.get("sessions", []);
 let phase = store.get("phase", "pilot");
 // "study": scripted Round 1 / Round 2, every round starts fresh (fair comparison).
 // "use": everyday use. The student code, calibration and what was learned are kept on this device,
 // so the next session starts where the last one stopped: no calibration, no rounds.
 let mode = store.get("mode", "study");
-let learned = store.get("learned", {});         // learned[pid][task] = {up, down, left, right}
+let learned = store.get("learned2", {});         // learned[pid][task] = {up, down, left, right}
 // Participant link (student.html?code=FB-1234&pid=P03&phase=final): the participant is alone, so the page fixes
 // the code, phase and mode from the link, hides Settings, and guides every step in Arabic.
 const QS = new URLSearchParams(location.search);
@@ -259,7 +261,10 @@ $("btnCam").onclick = async () => {
   }catch{ camState = "error"; }
   ui(); await modelReady;
 };
-function angles(m){ return { p: Math.atan2(m[6], m[10])*180/Math.PI, y: Math.asin(Math.max(-1, Math.min(1, -m[2])))*180/Math.PI }; }
+// Head angles from MediaPipe's face matrix. In its axes a positive x-rotation means looking down and a positive
+// y-rotation means turning to the person's left, so both are negated: p > 0 = looking up, y > 0 = turning to their right.
+// (Before s4 both signs were the other way round; s3 and older data have up/down and left/right swapped.)
+function angles(m){ return { p: -Math.atan2(m[6], m[10])*180/Math.PI, y: Math.asin(Math.max(-1, Math.min(1, m[2])))*180/Math.PI }; }
 let lastVT = -1;
 function sense(t){
   if (!demo() && $("vid").readyState >= 2){
@@ -271,7 +276,7 @@ function sense(t){
       pose = pose.face ? { p:pose.p+(a.p-pose.p)*k, y:pose.y+(a.y-pose.y)*k, face:true } : { ...a, face:true };
     } else pose = { ...pose, face:false };
   } else if (camState === "on") pose = { ...pose, face:false };
-  else pose = { ...simPose, face:true };
+  else pose = { ...simPose, face: simPose.face !== false };
 }
 const lkey = () => (demo() ? "demo:" : "") + pid();   // Demo Mode keeps its own memory, so it never changes a real student's zone
 const startTol = () => mode === "use" ? (learned[lkey()]?.[task] || TASK_TOL[task]) : TASK_TOL[task];
@@ -350,7 +355,7 @@ function stepCalib(t){
   if (ok){
     calibs[pid()] ??= {};
     calibs[pid()][task] = { p: median(calib.samples.map(s => s.p)), y: median(calib.samples.map(s => s.y)) };
-    store.set("calibs", calibs); stepTone(); emit("calibrated"); needRecal = false; setupMsgAr = "";
+    store.set("calibs2", calibs); stepTone(); emit("calibrated"); needRecal = false; setupMsgAr = "";
   }
   calib = null; ui();
   if (!ok) $("hint").textContent = "The face was not visible during calibration. Check the camera angle, then calibrate again.";
@@ -483,13 +488,14 @@ function endRound(finished){
     recovSumS: +(run.recov.reduce((a,b)=>a+b,0)/1000).toFixed(2), recovN: run.recov.length,
     trackingLostCount: run.lostCount, trackingLostS: +(run.lostMs/1000).toFixed(1),
     alertS: ALERT_S, startZone: TASK_TOL[run.task], finalZone: run.work.tol,
-    learn: run.round === 2 ? { step: LEARN.STEP, cap: LEARN.CAP } : null,
+    learn: run.round === 2 ? { ...LEARN } : null,
     // Head-angle spread (5th–95th percentile, degrees from the centre) per script step type: the evidence for the task zones.
     // quality (kept inside "spread" so the sheet needs no new columns): share of on-task time outside the zone,
     // share of the round with no face, alerts closed because the step changed.
     spread: { on: spread(run.poses.on), test: spread(run.poses.test), off: spread(run.poses.off),
       quality: { onOutPct: run.q.onSeen ? Math.round(100*run.q.onOut/run.q.onSeen) : null,
-                 lostPct: Math.round(100*run.lostMs/Math.max(1, t - run.start)), autoClosed: run.q.autoClosed } } };
+                 lostPct: Math.round(100*run.lostMs/Math.max(1, t - run.start)), awayPct: Math.round(100*(run.awayMs || 0)/Math.max(1, t - run.start)),
+                 autoClosed: run.q.autoClosed } } };
   row.id = rowId(row);
   sessions.push(row); store.set("sessions", sessions);
   if (!row.demo) sheetQueue([row]).then(r => { lastSheet = r; sheetUi(r); ui(); });
@@ -505,11 +511,16 @@ function step(t){
   if (!run) return;
   if (run.late && t >= run.late.until){ run.late = null; if (run.state === "monitor") hideAlert(); }
   const dt = Math.min(t - run.lastT, 500); run.lastT = t;
-  const z = inZone();
+  let z = inZone();
   // Head angle relative to the centre, about 5 times a second, grouped by the script step (on / test / off).
   const seg = run.segs[run.i];
   if (seg?.k === "on" && z !== null && t - run.segStart >= 1500){ run.q.onSeen += dt; if (z === false) run.q.onOut += dt; }
   if (z !== null && seg && t - run.lastPoseAt >= 200 && t - run.segStart >= 1500){ run.lastPoseAt = t; const q = rel(); run.poses[seg.k]?.push([+q.dp.toFixed(1), +q.dy.toFixed(1)]); }
+  // Face gone right after the head left the zone = the student turned away (the camera cannot see a face turned
+  // far to the side): that counts as outside the zone. Face gone while in the zone = tracking lost, never off-task.
+  if (z !== null) run.lastSeen = z;
+  const away = z === null && run.lastSeen === false;
+  if (away){ run.awayMs = (run.awayMs || 0) + dt; z = false; }
   // tracking lost: logged on its own, never counted as off-task
   if (z === null){
     run.lostSince ??= t; run.lostMs += dt; if (run.open) run.open.lost += dt;
@@ -520,7 +531,7 @@ function step(t){
   }
   if (run.state === "monitor"){
     if (z === true || t < run.cooldownUntil){ run.offMs = 0; run.offBuf = []; return; }
-    if (z === false){ run.offMs += dt; run.offBuf.push(rel()); }
+    if (z === false){ run.offMs += dt; if (!away) run.offBuf.push(rel()); }
     if (run.offMs >= ALERT_S * 1000) raiseAlert(t);
   } else if (run.state === "alert"){
     if (z === true){
@@ -566,7 +577,7 @@ $("btnFocused").onclick = () => {
   const before = { ...run.work.tol };
   const learns = run.round === 2 || run.round === "use";
   if (learns) adapt(a.buf);
-  if (run.round === "use"){ (learned[(run.demo ? "demo:" : "") + run.pid] ??= {})[run.task] = { ...run.work.tol }; store.set("learned", learned); }
+  if (run.round === "use"){ (learned[(run.demo ? "demo:" : "") + run.pid] ??= {})[run.task] = { ...run.work.tol }; store.set("learned2", learned); }
   emit("i_was_focused", { learned: learns, late: !!a.late, before, after: { ...run.work.tol } });
   // A late answer belongs to an alert that is already closed: the current step keeps being measured as it is.
   if (!a.late){ run.state = "monitor"; run.offMs = 0; run.offBuf = []; run.cooldownUntil = now() + COOLDOWN_MS; run.nudges = 0; run.teacherSent = false; }
@@ -576,8 +587,9 @@ function adapt(buf){
   if (!buf.length) return;
   // Gradual: only the side the head moved to widens, by at most LEARN.STEP, never beyond LEARN.CAP. The wait stays fixed.
   const dp = median(buf.map(s => s.dp)), dy = median(buf.map(s => s.dy)), t = run.work.tol;
-  const grow = (cur, need) => need > cur ? +Math.min(LEARN.CAP, cur + LEARN.STEP, need + LEARN.MARGIN).toFixed(1) : cur;
-  t.up = grow(t.up, dp); t.down = grow(t.down, -dp); t.right = grow(t.right, dy); t.left = grow(t.left, -dy);
+  const grow = (cur, need, step, cap) => need > cur ? +Math.min(cap, cur + step, need + LEARN.MARGIN).toFixed(1) : cur;
+  t.up = grow(t.up, dp, LEARN.STEP_UD, LEARN.CAP_UD); t.down = grow(t.down, -dp, LEARN.STEP_UD, LEARN.CAP_UD);
+  t.right = grow(t.right, dy, LEARN.STEP_SIDE, LEARN.CAP_SIDE); t.left = grow(t.left, -dy, LEARN.STEP_SIDE, LEARN.CAP_SIDE);
 }
 
 // ---------- results sheet ----------
@@ -597,7 +609,7 @@ setInterval(() => { if (sheetWaiting()) sheetFlush().then(sheetUi); }, 60000);
 // ---------- mode ----------
 document.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { if (run || calib) return; mode = b.dataset.mode; store.set("mode", mode); ui(); sendLive(true); });
 $("btnResetLearn").onclick = () => {
-  if (learned[lkey()]?.[task]){ delete learned[lkey()][task]; store.set("learned", learned); $("resetNote").textContent = "Back to the default zone."; }
+  if (learned[lkey()]?.[task]){ delete learned[lkey()][task]; store.set("learned2", learned); $("resetNote").textContent = "Back to the default zone."; }
   else $("resetNote").textContent = "Nothing learned yet.";
   ui();
 };
@@ -629,7 +641,7 @@ pc.addEventListener("pointerdown", e => { if (camState !== "on"){ drag = true; p
 pc.addEventListener("pointermove", e => { if (drag) simFrom(e); });
 pc.addEventListener("pointerup", () => drag = false);
 window.FB_state = () => run && { k: run.segs[run.i]?.k, i: run.i, state: run.state, tol: { ...run.work.tol } };   // read by tests
-window.FB_sim = (dy, dp) => { const b = zone().base; simPose = { y: b.y + dy, p: b.p + dp }; };   // used by the demo and tests
+window.FB_sim = (dy, dp, face = true) => { const b = zone().base; simPose = { y: b.y + dy, p: b.p + dp, face }; };   // used by the demo and tests
 
 // ---------- ui ----------
 function ui(){ uiMain(); guide(); }
