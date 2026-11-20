@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#05301b">
+<title>FocusBack · جرّب بنفسك · Try it</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&family=Readex+Pro:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css?v=1794208572">
+<style>
+/* Visitor demo for the exhibition: one screen, no settings, nothing saved.
+   Left/right follow the reading direction: in Arabic the camera is on the right. */
+body{min-height:100vh}
+.wrap{max-width:1240px;margin:0 auto;padding:6px 20px 40px;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:22px}
+@media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr)}}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;font-size:14px;border:1px solid rgb(255 255 255 / .22);color:#dfe6e4;background:rgb(255 255 255 / .06)}
+.pill.ok{border-color:#7dffb9;color:#7dffb9}
+button.pill{cursor:pointer;font:inherit;font-size:14px}
+h2.t{margin:4px 0 2px;font:800 clamp(30px,3.2vw,44px)/1.15 var(--ar)}
+.lead{margin:0;color:#c9d6d1;font-size:17px}
+.card2{border-radius:20px;background:rgb(255 255 255 / .05);border:1px solid rgb(255 255 255 / .14);padding:16px}
+
+.cam{position:relative;border-radius:20px;overflow:hidden;aspect-ratio:4/3;background:radial-gradient(120% 90% at 50% 40%,#0d3d26,#03170c);border:1px solid rgb(255 255 255 / .14)}
+.cam video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
+.cam .center{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px}
+.cam .center div{max-width:420px}
+.cam .center p{font-size:18px;color:#e8efec;margin:10px 0 18px}
+.big{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:58px;padding:0 30px;border-radius:999px;border:0;background:#fff;color:#0a5a33;font:700 19px var(--ar);cursor:pointer}
+.big.orange{background:#ff8a3d;color:#fff}
+.count{font:800 96px/1 var(--display, var(--ar));color:#7dffb9}
+.alert{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgb(255 138 61 / .25);backdrop-filter:blur(2px)}
+.alert.on{display:flex}
+.alert .box{background:#fff;color:#1b2b26;border-radius:22px;padding:22px 26px;text-align:center;max-width:380px;box-shadow:0 0 0 8px rgb(255 138 61 / .35),0 20px 60px rgb(0 0 0 / .4);animation:pop .35s ease}
+.alert .ring{width:58px;height:58px;margin:0 auto 8px;border-radius:50%;border:6px solid #ff8a3d;display:grid;place-items:center}
+.alert .ring::after{content:"";width:16px;height:16px;border-radius:50%;background:#ff8a3d}
+.alert h3{margin:0 0 4px;font:700 24px var(--ar)}
+.alert p{margin:0 0 14px;color:#55625d}
+@keyframes pop{from{transform:scale(.85);opacity:0}to{transform:none;opacity:1}}
+.toast{position:absolute;top:14px;inset-inline:14px;display:none;justify-content:center}
+.toast span{background:#2fd47f;color:#03170c;font-weight:700;padding:10px 18px;border-radius:999px;font-size:17px}
+.toast.on{display:flex}
+.away{position:absolute;bottom:12px;inset-inline:12px;height:12px;border-radius:99px;background:rgb(0 0 0 / .45);overflow:hidden;display:none}
+.away i{display:block;height:100%;width:0;background:#ff8a3d;border-radius:99px;transition:width .1s linear}
+
+.panel svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13.5px;color:#c9d6d1;margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:14px;border-radius:4px;display:inline-block}
+.tasks{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 4px}
+.tasks button{flex:1;min-width:110px;padding:10px;border-radius:14px;border:1.5px solid rgb(255 255 255 / .25);background:transparent;color:#fff;font:600 16px var(--ar);cursor:pointer}
+.tasks button[aria-pressed="true"]{background:#fff;color:#0a5a33;border-color:#fff}
+.tries{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.tries li{display:flex;gap:12px;align-items:flex-start;padding:10px 14px;border-radius:16px;background:rgb(255 255 255 / .05);border:1px solid rgb(255 255 255 / .12);font-size:16.5px;line-height:1.55}
+.tries li .n{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:700;background:rgb(255 255 255 / .14)}
+.tries li small{display:block;color:#a9bab4;font-size:14px}
+.tries li.done{border-color:#7dffb9;background:rgb(125 255 185 / .08)}
+.tries li.done .n{background:#7dffb9;color:#03170c}
+.tries li.now{border-color:#ff8a3d}
+.stats{display:flex;gap:10px;margin-top:12px}
+.stats div{flex:1;text-align:center;padding:10px;border-radius:14px;background:rgb(255 255 255 / .06)}
+.stats b{display:block;font:800 28px var(--ar)}
+.stats span{font-size:13px;color:#a9bab4}
+.foot2{grid-column:1/-1;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;color:#a9bab4;font-size:13.5px}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="./"><svg class="logo" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="12" fill="none" stroke="#7dffb9" stroke-width="3"/><circle cx="17" cy="17" r="2.6" fill="#ffffff"/><circle cx="26" cy="8" r="4" fill="#ff8a3d"/></svg><h1>FocusBack</h1><span>SAIF 2026</span></a>
+  <div class="bar" style="margin-inline-start:auto">
+    <span class="pill ok" data-t="saved"></span>
+    <button class="pill" id="lang">English</button>
+    <button class="pill" id="reset" data-t="reset"></button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <h2 class="t" data-t="title"></h2>
+    <p class="lead" data-t="lead" style="margin-bottom:14px"></p>
+    <div class="cam" id="cam">
+      <video id="vid" playsinline muted></video>
+      <div class="center" id="center"></div>
+      <div class="toast" id="toast"><span id="toastT"></span></div>
+      <div class="away" id="away"><i id="awayBar"></i></div>
+      <div class="alert" id="alert"><div class="box">
+        <div class="ring"></div>
+        <h3 data-t="alertH"></h3>
+        <p data-t="alertP"></p>
+        <button class="big orange" id="focused" data-t="focused"></button>
+      </div></div>
+    </div>
+    <div class="tasks" id="tasks">
+      <button data-task="reading" aria-pressed="true"></button>
+      <button data-task="writing" aria-pressed="false"></button>
+      <button data-task="listening" aria-pressed="false"></button>
+    </div>
+  </section>
+
+  <section>
+    <div class="card2 panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b data-t="sees" style="font-size:18px"></b><span class="pill" id="state"></span></div>
+      <svg id="view" viewBox="0 0 400 270" direction="ltr" aria-label="Head position and task zone">
+        <rect x="0" y="0" width="400" height="270" rx="16" fill="rgb(255 255 255 / .03)"/>
+        <line x1="200" y1="10" x2="200" y2="260" stroke="rgb(255 255 255 / .12)"/>
+        <line x1="12" y1="150" x2="388" y2="150" stroke="rgb(255 255 255 / .12)"/>
+        <text x="214" y="22" text-anchor="start" fill="#a9bab4" font-size="12" id="lblUp"></text>
+        <text x="200" y="262" text-anchor="middle" fill="#a9bab4" font-size="12" id="lblDown"></text>
+        <text x="16" y="146" fill="#a9bab4" font-size="12" id="lblLeft"></text>
+        <text x="384" y="146" text-anchor="end" fill="#a9bab4" font-size="12" id="lblRight"></text>
+        <rect id="zone" fill="rgb(125 255 185 / .14)" stroke="#7dffb9" stroke-width="2.5" rx="8"/>
+        <g id="ex"></g>
+        <circle id="dot" r="9" fill="#ffffff" stroke="#03170c" stroke-width="2"/>
+      </svg>
+      <div class="legend">
+        <span><i style="background:rgb(125 255 185 / .35);border:2px solid #7dffb9"></i><em data-t="lgZone" style="font-style:normal"></em></span>
+        <span><i style="border:2px dashed #7dffb9;border-radius:50%"></i><em data-t="lgSaved" style="font-style:normal"></em></span>
+        <span><i style="background:#fff;border-radius:50%"></i><em data-t="lgHead" style="font-style:normal"></em></span>
+      </div>
+    </div>
+    <ol class="tries" id="tries">
+      <li id="try1"><span class="n">1</span><div><span data-t="t1"></span><small data-t="t1s"></small></div></li>
+      <li id="try2"><span class="n">2</span><div><span data-t="t2"></span><small data-t="t2s"></small></div></li>
+      <li id="try3"><span class="n">3</span><div><span data-t="t3"></span><small data-t="t3s"></small></div></li>
+    </ol>
+    <div class="stats">
+      <div><b id="sAlerts">0</b><span data-t="sAlerts"></span></div>
+      <div><b id="sSaved">0</b><span data-t="sSaved"></span></div>
+      <div><b id="sBack">0</b><span data-t="sBack"></span></div>
+    </div>
+  </section>
+  <div class="foot2"><span data-t="foot"></span><a href="./" style="color:#7dffb9" data-t="home"></a></div>
+</main>
+
+<script type="module">
+const $ = id => document.getElementById(id);
+const now = () => performance.now();
+
+// Same zones and learning rule as the study (s6); only the wait is shorter so a visitor sees it quickly.
+const TASK_TOL = {
+  reading:   { up:22, down:12, left:16, right:16 },
+  writing:   { up:16, down:12, left:15, right:15 },
+  listening: { up:22, down:13, left:14, right:14 },
+};
+const LEARN = { R:15, MAX:8 };
+const ALERT_S = 3, BACK_MS = 800, CAL_MS = 3000, COOLDOWN_MS = 2500, IDLE_RESET_MS = 25000;
+
+const T = {
+  ar: {
+    saved:"لا يُحفظ أي شيء · الفيديو لا يغادر الجهاز", reset:"زائر جديد", title:"جرّب FocusBack بنفسك",
+    lead:"دقيقة واحدة: أبعد نظرك، وشوف كيف ينبّهك البرنامج بلطف، ثم علّمه وضعيتك بضغطة.",
+    start:"ابدأ التجربة", startP:"اجلس أمام الشاشة، ثم اضغط ابدأ. نحتاج إذنك لاستخدام الكاميرا.",
+    loading:"جاري تجهيز البرنامج…", camErr:"ما قدرنا نشغّل الكاميرا. تأكد من الإذن ثم أعد المحاولة.",
+    cal:"اجلس طبيعي وانظر إلى الشاشة", noFace:"ما نشوف وجهك… اقترب من الكاميرا",
+    alertH:"يبدو أنك ابتعدت عن المهمة", alertP:"ارجع لمهمتك… أو إذا كنت مركّزاً اضغط:", focused:"كنت مركّزاً",
+    back:"أهلاً بعودتك! 👋", learned:"تعلّمت وضعيتك ✔ لن أنبّهك عليها مرة ثانية",
+    sees:"ماذا يرى النظام؟", lgZone:"منطقة المهمة", lgSaved:"وضعية محفوظة", lgHead:"رأسك الآن",
+    up:"فوق", down:"تحت", left:"يسار", right:"يمين",
+    st_idle:"بانتظار زائر", st_cal:"معايرة", st_in:"على المهمة ✔", st_out:"خارج المنطقة", st_alert:"تنبيه", st_noface:"لا يوجد وجه",
+    t1:"التفت بعيداً عن الشاشة", t1s:"بعد 3 ثوانٍ يأتيك تنبيه لطيف",
+    t2:"ارفع نظرك كأنك تفكّر، ولما يجي التنبيه اضغط «كنت مركّزاً»", t2s:"هذا تنبيه خاطئ، فالبرنامج يحفظ وضعيتك",
+    t3:"ارفع نظرك مرة ثانية بنفس الطريقة", t3s:"ما فيه تنبيه هالمرة. البرنامج تعلّم منك!",
+    sAlerts:"تنبيهات", sSaved:"وضعيات محفوظة", sBack:"مرات الرجوع",
+    reading:"📖 قراءة", writing:"✏️ كتابة", listening:"🎧 استماع",
+    foot:"نسخة تجريبية للمعرض: التنبيه بعد 3 ثوانٍ (في الدراسة 5 ثوانٍ).", home:"الصفحة الرئيسية",
+  },
+  en: {
+    saved:"Nothing is saved · video never leaves this device", reset:"New visitor", title:"Try FocusBack yourself",
+    lead:"One minute: look away, see the gentle nudge, then teach it your posture with one tap.",
+    start:"Start", startP:"Sit in front of the screen and press Start. We need permission to use the camera.",
+    loading:"Getting ready…", camErr:"Could not start the camera. Check the permission and try again.",
+    cal:"Sit naturally and look at the screen", noFace:"We can't see your face… move closer",
+    alertH:"Looks like you drifted away", alertP:"Back to the task… or, if you were focused, tap:", focused:"I was focused",
+    back:"Welcome back! 👋", learned:"Got it ✔ I won't flag this posture again",
+    sees:"What the system sees", lgZone:"Task zone", lgSaved:"Saved posture", lgHead:"Your head now",
+    up:"Up", down:"Down", left:"Left", right:"Right",
+    st_idle:"Waiting for a visitor", st_cal:"Calibrating", st_in:"On task ✔", st_out:"Outside the zone", st_alert:"Alert", st_noface:"No face",
+    t1:"Turn away from the screen", t1s:"After 3 s a gentle alert appears",
+    t2:"Look up as if thinking; when the alert comes, tap \"I was focused\"", t2s:"That alert was wrong, so the system saves your posture",
+    t3:"Look up the same way again", t3s:"No alert this time. It learned from you!",
+    sAlerts:"Alerts", sSaved:"Saved postures", sBack:"Returns",
+    reading:"📖 Reading", writing:"✏️ Writing", listening:"🎧 Listening",
+    foot:"Exhibition demo: alert after 3 s (5 s in the study).", home:"Home page",
+  },
+};
+let lang = "ar";
+const tr = k => T[lang][k] ?? k;
+
+// ---------- state ----------
+let landmarker = null, modelErr = false, camOn = false;
+let stage = "idle";        // idle → cal → live
+let task = "reading";
+let pose = { p:0, y:0, face:false }, base = null, ex = [];
+let calBuf = [], calT0 = 0;
+let outT0 = null, backT0 = null, wasOut = false;
+let alertOn = false, alertT = 0, cooldownTo = 0, buf = [];
+let lastFace = now();
+let done = { t1:false, t2:false, t3:false }, t3Out0 = null;
+let stats = { alerts:0, saved:0, back:0 };
+
+// ---------- model (local first, CDN fallback, same as the student page) ----------
+const MP_CDN = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+const MODEL_LOCAL = "vendor/mediapipe/face_landmarker.task";
+const MODEL_CDN = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+const modelReady = (async () => {
+  try{
+    let mp, wasm = "vendor/mediapipe/wasm";
+    try{ mp = await import("./vendor/mediapipe/vision_bundle.mjs"); }
+    catch{ mp = await import(MP_CDN + "/vision_bundle.mjs"); wasm = MP_CDN + "/wasm"; }
+    const { FilesetResolver, FaceLandmarker } = mp;
+    let files;
+    try{ if (!(await fetch(wasm + "/vision_wasm_internal.wasm", { method:"HEAD" })).ok) throw 0; files = await FilesetResolver.forVisionTasks(wasm); }
+    catch{ files = await FilesetResolver.forVisionTasks(MP_CDN + "/wasm"); }
+    let model = MODEL_CDN;
+    try{ if ((await fetch(MODEL_LOCAL, { method:"HEAD" })).ok) model = MODEL_LOCAL; }catch{}
+    const opts = d => ({ baseOptions:{ modelAssetPath:model, delegate:d }, runningMode:"VIDEO", numFaces:1, outputFacialTransformationMatrixes:true });
+    try{ landmarker = await FaceLandmarker.createFromOptions(files, opts("GPU")); }
+    catch{ landmarker = await FaceLandmarker.createFromOptions(files, opts("CPU")); }
+  }catch(e){ modelErr = true; console.error(e); }
+  render();
+})();
+
+function angles(m){ return { p: -Math.atan2(m[6], m[10])*180/Math.PI, y: Math.asin(Math.max(-1, Math.min(1, m[2])))*180/Math.PI }; }
+let lastVT = -1;
+// ?sim=1 lets a test drive the head pose without a camera (window.FB_simPose = {p, y, face}).
+const SIM = new URLSearchParams(location.search).has("sim");
+function sense(t){
+  if (SIM){ const sp = window.FB_simPose || { p:0, y:0, face:true }; pose = { ...sp }; if (sp.face) lastFace = now(); return; }
+  const v = $("vid");
+  if (!landmarker || !camOn || v.readyState < 2 || v.currentTime === lastVT) return;
+  lastVT = v.currentTime;
+  const mats = landmarker.detectForVideo(v, t).facialTransformationMatrixes;
+  if (mats && mats.length){
+    const a = angles(mats[0].data), k = .35;
+    pose = pose.face ? { p:pose.p+(a.p-pose.p)*k, y:pose.y+(a.y-pose.y)*k, face:true } : { ...a, face:true };
+    lastFace = now();
+  } else pose = { ...pose, face:false };
+}
+const median = a => { const s = [...a].sort((x, y) => x - y); return s.length ? s[s.length >> 1] : 0; };
+const rel = () => ({ dp: pose.p - base.p, dy: pose.y - base.y });
+function inBox(r){ const z = TASK_TOL[task]; return r.dp <= z.up && r.dp >= -z.down && r.dy <= z.right && r.dy >= -z.left; }
+function inEx(r){ return ex.some(e => e.task === task && Math.hypot(r.dp - e.dp, r.dy - e.dy) <= LEARN.R); }
+// null = no face. A face lost right after leaving the zone counts as still outside (turning away often loses the face).
+function inZone(){
+  if (!pose.face) return wasOut ? false : null;
+  const r = rel(); return inBox(r) || inEx(r);
+}
+
+// ---------- sound ----------
+let ac = null;
+function tone(freq, at, dur, vol){
+  ac ??= new (window.AudioContext || window.webkitAudioContext)();
+  const o = ac.createOscillator(), g = ac.createGain(); o.type = "sine"; o.frequency.value = freq; o.connect(g); g.connect(ac.destination);
+  const t0 = ac.currentTime + at; g.gain.setValueAtTime(.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + .03); g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
+  o.start(t0); o.stop(t0 + dur + .05);
+}
+const softAlert = () => { try{ tone(660, 0, .35, .12); tone(880, .22, .45, .1); }catch{} };
+const okTone = () => { try{ tone(523, 0, .2, .08); tone(784, .15, .3, .08); }catch{} };
+
+let toastTimer = 0;
+function toast(msg){ $("toastT").textContent = msg; $("toast").classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => $("toast").classList.remove("on"), 2600); }
+
+// ---------- flow ----------
+async function start(){
+  if (!camOn && !SIM){
+    try{
+      const s = await navigator.mediaDevices.getUserMedia({ video:{ width:640, height:480, facingMode:"user" } });
+      $("vid").srcObject = s; await $("vid").play(); camOn = true;
+    }catch{ $("center").innerHTML = `<div><p>${tr("camErr")}</p><button class="big" id="go">${tr("start")}</button></div>`; $("go").onclick = start; return; }
+  }
+  try{ ac ??= new (window.AudioContext || window.webkitAudioContext)(); ac.resume(); }catch{}
+  await modelReady;
+  stage = "cal"; calBuf = []; calT0 = now(); render();
+}
+function resetVisitor(){
+  stage = "idle"; base = null; ex = []; alertOn = false; outT0 = backT0 = null; wasOut = false; buf = [];
+  done = { t1:false, t2:false, t3:false }; t3Out0 = null; stats = { alerts:0, saved:0, back:0 };
+  $("alert").classList.remove("on"); render();
+}
+$("reset").onclick = resetVisitor;
+$("focused").onclick = () => {
+  if (!alertOn) return;
+  // Save where the head was during this alert (median of the last 2 s outside the zone), like Round 2 of the study.
+  const pts = buf.filter(b => now() - b.t < 2000);
+  if (pts.length){
+    const e = { task, dp: median(pts.map(b => b.dp)), dy: median(pts.map(b => b.dy)) };
+    const mine = ex.filter(x => x.task === task);
+    if (mine.length >= LEARN.MAX) ex.splice(ex.indexOf(mine[0]), 1);
+    ex.push(e); stats.saved++;
+    if (e.dp > 6) done.t2 = true;      // a learned "look up" posture
+  }
+  alertOn = false; $("alert").classList.remove("on");
+  outT0 = null; backT0 = null; cooldownTo = now() + COOLDOWN_MS;
+  okTone(); toast(tr("learned")); render();
+};
+document.querySelectorAll("[data-task]").forEach(b => b.onclick = () => {
+  task = b.dataset.task; alertOn = false; $("alert").classList.remove("on"); outT0 = backT0 = null; render();
+});
+$("lang").onclick = () => { lang = lang === "ar" ? "en" : "ar"; render(); };
+
+// ---------- loop ----------
+function loop(t){
+  sense(t);
+  const n = now();
+  if (stage === "cal"){
+    if (pose.face) calBuf.push({ p:pose.p, y:pose.y });
+    if (n - calT0 >= CAL_MS && calBuf.length > 10){
+      base = { p: median(calBuf.map(c => c.p)), y: median(calBuf.map(c => c.y)) };
+      stage = "live"; wasOut = false; render();
+    } else if (n - calT0 >= CAL_MS) { calT0 = n; calBuf = []; }
+  }
+  if (stage === "live"){
+    const z = inZone();
+    if (pose.face){ const r = rel(); if (!inBox(r) && !inEx(r)) buf.push({ t:n, ...r }); }
+    buf = buf.filter(b => n - b.t < 4000);
+    if (z === false){
+      wasOut = true; backT0 = null;
+      if (outT0 === null) outT0 = n;
+      if (!alertOn && n > cooldownTo && n - outT0 >= ALERT_S * 1000){
+        alertOn = true; alertT = n; stats.alerts++; $("alert").classList.add("on"); softAlert();
+        if (pose.face && rel().dp < 6 || !pose.face) done.t1 = true;   // turned away (sideways, down or face lost)
+      }
+    } else if (z === true){
+      if (backT0 === null) backT0 = n;
+      if (n - backT0 >= BACK_MS){
+        if (alertOn){ alertOn = false; $("alert").classList.remove("on"); stats.back++; okTone(); toast(tr("back")); }
+        outT0 = null; wasOut = false;
+      }
+    }
+    // Step 3: after learning a "look up" posture, the head sits outside the box but inside a saved circle long enough, with no alert.
+    if (done.t2 && !done.t3 && pose.face){
+      const r = rel();
+      if (!inBox(r) && inEx(r)){ t3Out0 ??= n; if (n - t3Out0 > (ALERT_S + 1) * 1000){ done.t3 = true; okTone(); toast(tr("t3s")); } }
+      else t3Out0 = null;
+    }
+    // Next visitor: no face for a while → back to the start screen.
+    if (!pose.face && n - lastFace > IDLE_RESET_MS) resetVisitor();
+  }
+  draw(n);
+  requestAnimationFrame(loop);
+}
+
+// ---------- drawing ----------
+const S = 3, CX = 200, CY = 150;      // 3 px per degree; up is up, the person's right is on the right (mirror view)
+const px = r => ({ x: CX + r.dy * S, y: CY - r.dp * S });
+function draw(n){
+  const z = TASK_TOL[task];
+  const zr = $("zone");
+  zr.setAttribute("x", CX - z.left * S); zr.setAttribute("y", CY - z.up * S);
+  zr.setAttribute("width", (z.left + z.right) * S); zr.setAttribute("height", (z.up + z.down) * S);
+  $("ex").innerHTML = ex.filter(e => e.task === task).map(e => { const c = px(e);
+    return `<circle cx="${c.x}" cy="${c.y}" r="${LEARN.R * S}" fill="rgb(125 255 185 / .10)" stroke="#7dffb9" stroke-width="2.5" stroke-dasharray="7 6"/><circle cx="${c.x}" cy="${c.y}" r="4" fill="#7dffb9"/>`; }).join("");
+  const dot = $("dot");
+  if (stage === "live" && pose.face){
+    const c = px(rel()); dot.setAttribute("cx", Math.max(10, Math.min(390, c.x))); dot.setAttribute("cy", Math.max(10, Math.min(260, c.y)));
+    dot.setAttribute("fill", inZone() ? "#ffffff" : "#ff8a3d"); dot.style.opacity = 1;
+  } else dot.style.opacity = stage === "live" ? .25 : 0;
+  // away bar
+  const showAway = stage === "live" && outT0 !== null && !alertOn && n > cooldownTo;
+  $("away").style.display = showAway ? "block" : "none";
+  if (showAway) $("awayBar").style.width = Math.min(100, (n - outT0) / (ALERT_S * 10)) + "%";
+  // calibration countdown
+  if (stage === "cal"){
+    const left = Math.max(1, Math.ceil((CAL_MS - (n - calT0)) / 1000));
+    const el = $("calN"); if (el && el.textContent != left) el.textContent = left;
+    const m = $("calM"); if (m) m.textContent = pose.face ? tr("cal") : tr("noFace");
+  }
+  // state pill
+  let st = "st_idle";
+  if (stage === "cal") st = "st_cal";
+  else if (stage === "live") st = alertOn ? "st_alert" : (!pose.face && !wasOut) ? "st_noface" : inZone() ? "st_in" : "st_out";
+  const sp = $("state"); if (sp.dataset.k !== st + lang){ sp.dataset.k = st + lang; sp.textContent = tr(st); sp.className = "pill" + (st === "st_in" ? " ok" : ""); }
+  ["t1","t2","t3"].forEach((k, i) => {
+    const li = $("try" + (i + 1)); li.classList.toggle("done", done[k]);
+    li.classList.toggle("now", stage === "live" && !done[k] && ["t1","t2","t3"].slice(0, i).every(x => done[x]));
+  });
+  $("sAlerts").textContent = stats.alerts; $("sSaved").textContent = stats.saved; $("sBack").textContent = stats.back;
+}
+
+function render(){
+  document.documentElement.lang = lang; document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  $("lang").textContent = lang === "ar" ? "English" : "العربية";
+  document.querySelectorAll("[data-t]").forEach(el => el.textContent = tr(el.dataset.t));
+  document.querySelectorAll("[data-task]").forEach(b => { b.textContent = tr(b.dataset.task); b.setAttribute("aria-pressed", b.dataset.task === task); });
+  $("lblUp").textContent = tr("up"); $("lblDown").textContent = tr("down"); $("lblLeft").textContent = tr("left"); $("lblRight").textContent = tr("right");
+  const c = $("center");
+  if (stage === "idle"){
+    c.style.display = "grid";
+    if (modelErr) c.innerHTML = `<div><p>${tr("camErr")}</p></div>`;
+    else c.innerHTML = `<div><p>${tr("startP")}</p><button class="big" id="go">${landmarker ? tr("start") : tr("loading")}</button></div>`;
+    const g = $("go"); if (g){ g.disabled = !landmarker; g.onclick = start; }
+  } else if (stage === "cal"){
+    c.style.display = "grid";
+    c.innerHTML = `<div><div class="count" id="calN">3</div><p id="calM">${tr("cal")}</p></div>`;
+  } else { c.style.display = "none"; c.innerHTML = ""; }
+}
+render(); requestAnimationFrame(loop);
+// Re-render once the model is ready so the Start button wakes up.
+modelReady.then(render);
+window.FB_try = { get stage(){ return stage; }, get done(){ return done; }, get stats(){ return stats; } };
+</script>
+</body>
+</html>
